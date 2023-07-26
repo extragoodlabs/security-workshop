@@ -56,15 +56,6 @@ module.exports = (sequelize) => {
             type: DataTypes.DATE,
             allowNull: false,
         },
-        /* user_id: {
-         *     type: DataTypes.INTEGER,
-         *     allowNull: false,
-         *     references: {
-         *         model: User,
-         *         key: 'id',
-         *     },
-         * }, */
-
     }, {
         timestamps: false,
     });
