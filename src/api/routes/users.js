@@ -4,11 +4,13 @@ const User = models.user;
 
 const router = express.Router();
 
+/* List all users. */
 router.get('/', async function(req, res, next) {
     const users = await User.findAll();
 	  res.status(200).json(users);
 });
 
+/* Get a single user by ID. */
 router.get('/:id', async function(req, res, next) {
     try {
         const user = await User.findByPk(req.params.id);
@@ -24,6 +26,7 @@ router.get('/:id', async function(req, res, next) {
     }
 });
 
+/* Create a new user. */
 router.post('/', async function(req, res, next) {
     try {
         const user = await User.create(req.body);
@@ -34,6 +37,7 @@ router.post('/', async function(req, res, next) {
     }
 });
 
+/* Update an existing user by ID. */
 router.put('/:id', async function(req, res, next) {
     try {
         const user = await User.findByPk(req.params.id);
@@ -50,6 +54,7 @@ router.put('/:id', async function(req, res, next) {
     }
 });
 
+/* Delete an existing user by ID. */
 router.delete('/:id', async function(req, res, next) {
     try {
         const user = await User.destroy({ where: { id: req.params.id } });

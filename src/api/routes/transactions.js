@@ -4,11 +4,13 @@ const Transaction = models.transaction;
 
 const router = express.Router();
 
+/* List all transactions. */
 router.get('/', async function(req, res, next) {
     const transactions = await Transaction.findAll();
 	  res.status(200).json(transactions);
 });
 
+/* Get a single transaction by ID. */
 router.get('/:id', async function(req, res, next) {
     try {
         const transaction = await Transaction.findByPk(req.params.id);
@@ -24,6 +26,7 @@ router.get('/:id', async function(req, res, next) {
     }
 });
 
+/* Create a new transaction. */
 router.post('/', async function(req, res, next) {
     try {
         const transaction = await Transaction.create(req.body);
@@ -34,6 +37,7 @@ router.post('/', async function(req, res, next) {
     }
 });
 
+/* Update an existing transaction by ID. */
 router.put('/:id', async function(req, res, next) {
     try {
         const transaction = await Transaction.findByPk(req.params.id);
@@ -50,6 +54,7 @@ router.put('/:id', async function(req, res, next) {
     }
 });
 
+/* Delete an existing transaction by ID. */
 router.delete('/:id', async function(req, res, next) {
     try {
         const transaction = await Transaction.destroy({ where: { id: req.params.id } });
