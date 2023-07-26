@@ -6,7 +6,8 @@ const router = express.Router();
 
 /* List all transactions. */
 router.get('/', async function(req, res, next) {
-    const transactions = await Transaction.findAll();
+    const fields = req.query.fields ? req.query.fields.split(',') : undefined;
+    const transactions = await Transaction.findAll({ attributes: fields });
 	  res.status(200).json(transactions);
 });
 

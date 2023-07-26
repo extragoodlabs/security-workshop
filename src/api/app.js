@@ -21,6 +21,7 @@ const app = express();
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.set('query parser', 'simple');
 app.use(cookieParser());
 
 app.use('/', indexRouter);

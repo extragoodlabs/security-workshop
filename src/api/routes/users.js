@@ -6,7 +6,8 @@ const router = express.Router();
 
 /* List all users. */
 router.get('/', async function(req, res, next) {
-    const users = await User.findAll();
+    const fields = req.query.fields ? req.query.fields.split(',') : undefined;
+    const users = await User.findAll({ attributes: fields });
 	  res.status(200).json(users);
 });
 
