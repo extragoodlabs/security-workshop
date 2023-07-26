@@ -1,0 +1,54 @@
+{
+  "type": "array",
+  "length": {
+    "type": "number",
+    "range": {
+      "low": 2000,
+      "high": 10000,
+      "step": 136
+    },
+    "subtype": "u64"
+  },
+  "content": {
+    "type": "object",
+    "amount": {
+      "type": "number",
+      "range": {
+        "low": 274.4,
+        "high": 6597.5,
+        "step": 0.01
+      },
+      "subtype": "f64"
+    },
+    "currency": {
+      "type": "string",
+      "categorical": {
+        "USD": 8,
+        "GBP": 1,
+        "EUR": 1
+      }
+    },
+    "description": {
+      "type": "datasource",
+      "path": "json:descriptions.json",
+      "cycle": true
+    },
+    "id": {
+      "type": "number",
+      "id": {
+        "start_at": 0
+      },
+      "subtype": "i32"
+    },
+    "timestamp": {
+      "type": "date_time",
+      "format": "%Y-%m-%dT%H:%M:%S%z",
+      "begin": "2000-01-01T00:00:00+0000",
+      "end": "2023-08-01T00:00:00+0000"
+    },
+    "user_id": {
+      "type": "same_as",
+      "ref": "users.content.id"
+    }
+  }
+}
