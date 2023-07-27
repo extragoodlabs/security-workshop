@@ -1,5 +1,7 @@
+use config::Config;
 use itertools::Itertools;
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::error::Error;
 use url::Url;
 
@@ -81,7 +83,7 @@ fn get_transaction_amounts(base_url: &Url) -> Result<Vec<Account>, Box<dyn Error
                     let amount = transactions.map(|t| t.amount).sum();
                     Account {
                         id: user_id.to_string(),
-                        amount: amount,
+                        amount,
                     }
                 })
                 .collect();
@@ -101,8 +103,15 @@ fn reconcile_accounts(user_ids: Vec<String>, accounts: Vec<Account>) {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    // TODO: pull the API URL from a config
-    let base_url = Url::parse("http://localhost:3000").unwrap();
+    let config: HashMap<String, String> = Config::builder()
+        .add_source(config::File::with_name("settings"))
+        .add_source(config::Environment::with_prefix("APP"))
+        .build()?
+        .try_deserialize()?;
+    println!("settings: {:?}", config);
+
+    let api_url = config.get("api_url").unwrap();
+    let base_url = Url::parse(api_url).unwrap();
 
     let ids = get_user_ids(&base_url)?;
     let accounts = get_transaction_amounts(&base_url)?;
