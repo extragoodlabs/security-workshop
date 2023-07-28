@@ -20,13 +20,6 @@ SET row_security = off;
 -- Name: bank; Type: DATABASE; Schema: -; Owner: postgres
 --
 
-CREATE DATABASE bank WITH TEMPLATE = template0 ENCODING = 'UTF8' LOCALE = 'en_US.UTF-8';
-
-
-ALTER DATABASE bank OWNER TO postgres;
-
-\connect bank
-
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
@@ -6147,14 +6140,14 @@ COPY public.users (id, created_at, credit_card, currency, email, is_active, coun
 -- Name: transactions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.transactions_id_seq', 1, false);
+SELECT pg_catalog.setval('public.transactions_id_seq', (select max(id) from public.transactions), false);
 
 
 --
 -- Name: users_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.users_id_seq', 1, false);
+SELECT pg_catalog.setval('public.users_id_seq', (select max(id) from public.users), false);
 
 
 --
@@ -6184,7 +6177,3 @@ ALTER TABLE ONLY public.transactions
 --
 -- PostgreSQL database dump complete
 --
-
-
-select setval('users_id_seq', (select max(id) from users));
-select setval('transactions_id_seq', (select max(id) from transactions));
