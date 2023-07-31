@@ -103,8 +103,10 @@ fn reconcile_accounts(user_ids: Vec<String>, accounts: Vec<Account>) {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
+    let config_file = std::env::var("APP_CONFIG_FILE").unwrap_or("settings.json".into());
+
     let config: HashMap<String, String> = Config::builder()
-        .add_source(config::File::with_name("settings"))
+        .add_source(config::File::with_name(&config_file))
         .add_source(config::Environment::with_prefix("APP"))
         .build()?
         .try_deserialize()?;

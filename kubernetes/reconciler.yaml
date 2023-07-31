@@ -1,0 +1,28 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: reconciler
+  labels:
+    app: reconciler
+spec:
+  schedule: "*/2 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 5
+  failedJobsHistoryLimit: 10
+  startingDeadlineSeconds: 10
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: api
+        spec:
+          containers:
+          - name: api
+            #image: ghcr.io/jumpwire-ai/fintech-devcon-api:latest
+            image: jumpwire/reconciler
+            imagePullPolicy: IfNotPresent
+            env:
+            - name: APP_API_URL
+              value: http://api
+          restartPolicy: OnFailure
