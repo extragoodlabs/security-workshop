@@ -79,3 +79,40 @@ jobs:
           context: src/api
           platforms: linux/amd64,linux/arm/v7,linux/arm64/v8
           push: true
+
+  reconciler-docker-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v3
+        with:
+          # list of Docker images to use as base name for tags
+          images: |
+            ghcr.io/jumpwire-ai/fintech-devcon-reconciler
+          # generate Docker tags based on the following events/attributes
+          tags: |
+            type=edge
+            type=sha
+          flavor: |
+            latest=true
+            prefix=
+            suffix=
+      - name: Login to GitHub Packages
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v2
+        with:
+          tags: ${{ steps.meta.outputs.tags }}
+          context: src/reconciler
+          platforms: linux/amd64,linux/arm/v7,linux/arm64/v8
+          push: true
