@@ -27,7 +27,7 @@ If you are using macOS, use [k3d](https://k3d.io/v5.5.2/) to run k3s. "k3d is a 
 
 ### Linux (or WSL2)
 
-If you are using Windows with WSL2, you can install k3s directly. We recommend downloading the k3s binary directly instead of using the setup script provided by Rancher. This will skip the system changes that the script performs to configure a production version of k3s, as it will only be used for development
+If you are using Windows with WSL2, you can install k3s without docker. We recommend downloading the [k3s binary directly](https://docs.k3s.io/installation/configuration#configuration-with-binary) instead of using the setup script provided by Rancher. The binary is "useful when performing quick tests that do not merit managing K3s as a system service", which is suitable for this workshop.
 
 ```
  wget -q "https://github.com/k3s-io/k3s/releases/download/v1.25.11%2Bk3s1/k3s" -O /tmp/k3s
