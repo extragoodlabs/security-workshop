@@ -11,7 +11,9 @@ The workshop is designed to teach security principles as opposed to making speci
 tl;dr
 - Install `kubectl`
 - Install and configure `k3s` or `k3d` depending on your local operating system
-- Or if you have an existing Kubernetes cluster running with administrative rights, you can skip this setup
+- **or** if you have an existing Kubernetes cluster running with administrative rights, you can skip this setup
+
+### Overview
 
 This application runs as microservices in Kubernetes. To work through the steps locally, we recommend using [Rancher k3s](https://github.com/k3s-io/k3s), a lightweight Kubernetes installation that is "easy to install, half the memory, all in a binary less than 100 MB."
 
