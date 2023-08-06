@@ -1,11 +1,12 @@
-#fintech_devcon 2023
+# fintech_devcon 2023
+
 This is the code repository for a workshop given at fintech_devcon 2023 titled "Secure software demistifyed: data security practices"
 
 During the workshop, a microservice application will be refactored to improve security aligned with the [OWASP Top10](https://owasp.org/Top10/) categories for web application security risks. The microservice application contains and NodeJS API, a background worker, and a database. It runs in Kubernetes using Traefik as the network interface.
 
 The workshop is designed to teach security principles as opposed to making specific technology choices. Its goal is to help developers improve the security of their applications by implementing zero trust, updating default framework configurations, adding sensitive data protection, and monitoring events for anomalies.
 
-##Setup
+## Setup
 
 tl;dr
 - Install `kubectl`
@@ -14,7 +15,7 @@ tl;dr
 
 This application runs as microservices in Kubernetes. To work through the steps locally, we recommend using [Rancher k3s](https://github.com/k3s-io/k3s), a lightweight Kubernetes installation that is "easy to install, half the memory, all in a binary less than 100 MB."
 
-###macOS
+### macOS
 
 If you are using macOS, use [k3d](https://k3d.io/v5.5.2/) to run k3s. "k3d is a lightweight wrapper to run k3s in docker." So you will need docker installed on your local machine.
 
@@ -22,7 +23,7 @@ If you are using macOS, use [k3d](https://k3d.io/v5.5.2/) to run k3s. "k3d is a 
 
 [INSERT INSTRUCTIONS FOR INSTALLING K3D]
 
-###Linux (or WSL2)
+### Linux (or WSL2)
 
 If you are using Windows with WSL2, you can install k3s directly. We recommend downloading the k3s binary directly instead of using the setup script provided by Rancher. This will skip the system changes that the script performs to configure a production version of k3s, as it will only be used for development
 
