@@ -165,7 +165,8 @@ Generate some randomness - [https://www.random.org/cgi-bin/randbyte?nbytes=64&fo
 
 Turn it into a single string by copying and pasting the random bytes into this CyberChef recipe - [https://gchq.github.io/CyberChef/#recipe=Remove_whitespace(true,true,true,true,true,false)](https://gchq.github.io/CyberChef/#recipe=Remove_whitespace(true,true,true,true,true,false))
 
-Now you should have something that looks like this - `d318959b6b72c59433baf12fbf9d7c784d1b0b04f0399a63424a04a739283ac663e2a78d4139ae78dd9318999372caf707df14222a018a0333beb8265c92c150`
+Now you should have something that looks like this - 
+> d318959b6b72c59433baf12fbf9d7c784d1b0b04f0399a63424a04a739283ac663e2a78d4139ae78dd9318999372caf707df14222a018a0333beb8265c92c150
 
 # TODO is this the right way to include secrets?
 Add it to the API's [Dockerfile](src/api/Dockerfile) as an environment variable by replacing `[your token]` -
@@ -321,7 +322,7 @@ app.post('/createToken', (_req, res) => {
 module.exports = router;
 ```
 
-Next we'll add an authorization middleware function to `auth.js``. We wrap the middleware function with a parameter, allowing us to specify a permission that must be included in the JWT's user data -
+Next we'll add an authorization middleware function to `auth.js`. We wrap the middleware function with a parameter, allowing us to specify a permission that must be included in the JWT's user data -
 
 ```diff
 // src/api/auth.js
@@ -394,8 +395,20 @@ Now we're golden!
 
 ### A02:2021 Cryptographic Failures
 
+Add HTTPS!
+
 ### A04:2021 Insecure Design
+
+Add JumpWire!
+
+Add API Gateway!
 
 ### A05:2021 Security Misconfiguration
 
+Secure cookies!
+
+Hide server info!
+
 ### A09:2021 Security Logging and Monitoring Failures
+
+Set up logs and alerts!
