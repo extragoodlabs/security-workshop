@@ -2,9 +2,9 @@
 |:--:|:--:|
 |**#fintechdevcon2023**|**Secure software demystified**|
 
-## 🔒 Secure software demistifyed: data security practices
+## 🔒 Secure software demystified: data security practices
 
-This is the code repository for a workshop given at [fintech_devcon 2023](https://fintechdevcon.io/full-agenda/) titled **"Secure software demistifyed: data security practices"**
+This is the code repository for a workshop given at [fintech_devcon 2023](https://fintechdevcon.io/full-agenda/) titled **"Secure software demystified: data security practices"**
 
 During the workshop, a microservice application will be refactored to improve security, organized around the [OWASP Top10](https://owasp.org/Top10/) categories for web application security risks. We will improve authentication and authorization, encryption in transit, encryption at rest, and monitor for security-related events.
 
@@ -106,6 +106,8 @@ This workshop has the following exercises
 ### A01:2021 Broken Access Control
 
 The first risk of the OWASP Top 10 is "Broken Access Control".
+
+>Moving up from the fifth position, 94% of applications were tested for some form of broken access control with the average incidence rate of 3.81%, and has the most occurrences in the contributed dataset with over 318k.
 
 We will upgrade our API to add both authentication and authorization.
 
@@ -401,7 +403,15 @@ While you may think that your backend environment is straightforward or well pro
 
 ### A02:2021 Cryptographic Failures
 
+Encryption was invented thousands of years ago to protect information from falling into the wrong hands. It's still pretty useful for this today, as information speeds around the Internet near the speed of light.
+
+>Shifting up one position to #2, previously known as Sensitive Data Exposure, which is more of a broad symptom rather than a root cause, the focus is on failures related to cryptography (or lack thereof). Which often lead to exposure of sensitive data.
+
+#### Introducing HTTP connection encryption
+
 Add HTTPS!
+
+#### Introducing database connection encryption
 
 In addition to encrypting HTTP requests, we need to encrypt requests being made to our database. While it's not on by default, all modern databases support ssl to encrypt their connections.
 
@@ -441,7 +451,11 @@ A common mantra for good security (that is way overused now) is "encrypted in tr
 
 ### A04:2021 Insecure Design
 
-Add JumpWire!
+As your application's complexity increases, security moves from a concern around individual apps to a concern about the overall architecture.
+
+>A new category for 2021 focuses on risks related to design and architectural flaws, with a call for more use of threat modeling, secure design patterns, and reference architectures. As a community we need to move beyond "shift-left" in the coding space to pre-code activities that are critical for the principles of Secure by Design.
+
+When microservices start to proliferate, it becomes harder to ensure that every backend is implementing security controls correctly. Let's lift these controls into their own layers in our architecture.
 
 #### Introducing API Gateway
 
@@ -530,6 +544,10 @@ $ kubectl port-forward -n kube-system traefik-56cfc7b59f-4xpqd 9000:9000
 Now open [http://localhost:9000/dashboard/#/](http://localhost:9000/dashboard/#/) in your browser, and you should see the middleware installed successfully:
 ![](data/images/traefik-dashboard.png)
 
+#### Introducing JumpWire
+
+Um, what is JumpWire?
+
 
 <details>
 <summary>Go deeper</summary>
@@ -543,6 +561,10 @@ There is also a strategy called "defense in depth". This describes an approach o
 </details>
 
 ### A05:2021 Security Misconfiguration
+
+>Moving up from #6 in the previous edition, 90% of applications were tested for some form of misconfiguration, with an average incidence rate of 4%, and over 208k occurrences of a Common Weakness Enumeration (CWE) in this risk category. With more shifts into highly configurable software, it's not surprising to see this category move up.
+
+208,000 web servers with vulnerabilities is a lot! However that's not surprising, many vulnerabilities are discovered years after a particular version of software has been released. Unless you are paying very close attention, it's not impossible that one of your microservices has a weakness.
 
 Let's harden our web server by changing the default configuration and adding additional HTTP response headers. Web servers share information about themselves, which can be used to exploit zero-day vulnerabilties that may be discovered.
 
@@ -622,5 +644,7 @@ Additionally, absense of security headers in an HTTP response can indicate that 
 </details>
 
 ### A09:2021 Security Logging and Monitoring Failures
+
+>Security logging and monitoring came from the Top 10 community survey (#3), up slightly from the tenth position in the OWASP Top 10 2017. Logging and monitoring can be challenging to test, often involving interviews or asking if attacks were detected during a penetration test.
 
 Set up logs and alerts!
