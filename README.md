@@ -86,6 +86,14 @@ After making various software and infrastructure changes, the architecture will 
 
 ![Ending application architecture](./data/images/fintech_devcon-workshop-arch-end.svg)
 
+## Modifying this application
+
+Use your favorite code editor to make modifications to this project. The authors favor emacs and VSCode. While the authors provide change diffs in the exercises below, they encourage you to make the updates without using copy/paste.
+
+As you update code for each exercise, you can push your changes into the k3s cluster using the following commands:
+
+[ADD KUBECTL DEPLOY COMMAND]
+
 ## 📝 Exercises
 This workshop has the following exercises
 
@@ -392,10 +400,6 @@ module.exports = router;
 
 Now we're golden!
 
-### A02:2021 Cryptographic Failures
-
-Add HTTPS!
-
 <details>
 <summary>Go deeper</summary>
 
@@ -406,18 +410,154 @@ Like a locked front door of a house, a security team must only ensure that autho
 However this approach has been proven to be ineffective in modern environments, as the number and diversity of applications has grown significantly. Just this year, in 2023, we have seen a hack related to a file transfer utility called MOVEIt [leak data](https://en.wikipedia.org/wiki/2023_MOVEit_data_breach) from thousands of organizations.
 
 While you may think that your backend environment is straightforward or well protected today, this won't be the case as your company or product scales. Retrofitting hundreds of microservices with inter-service authentication would be a huge undertaking down the road.
+</details>
 
+### A02:2021 Cryptographic Failures
+
+Add HTTPS!
+
+In addition to encrypting HTTP requests, we need to encrypt requests being made to our database. While it's not on by default, all modern databases support ssl to encrypt their connections.
+
+For PostgreSQL, let's update our [chart](kubernetes/postgres.yaml) to add a certificate used for encryption:
+[UPDATE POSTGRES.YAML]
+
+We can configure our application to use ssl mode when connecting, by updating the database configuration in [default.json](src/api/config/default.json)
+```diff
+// src/api/config/default.json
+{
+  "database": {
+    "dialect": "postgres",
+    "host": "localhost",
+    "port": 5432,
+    "database": "bank",
+    "username": "postgres",
+-    "password": "postgres"
++    "password": "postgres",
++    "dialectOptions": {
++      "ssl": {
++        "require": true
++      }
++    }
+  }
+}
+
+```
+
+<details>
+<summary>Go deeper</summary>
+It used to be standard to "terminate TLS encryption", or decrypt, HTTP requests at a point when they entered the backend. For example, it was common for a load balancer to decrypt an HTTP request before sending it to one of the backend clusters. Or when making inter-service requests between microservices, they would only be configured to use unencrypted HTTP.
+
+Now that attackers are becoming adept at getting access to internal systems, unencrypted requests can be exploited to steal data. This isn't used just for malicious purposes, the NSA famously exploited this to spy on many companies, including [mighty Google](https://en.wikipedia.org/wiki/Tailored_Access_Operations#QUANTUM_attacks)
+
+A common mantra for good security (that is way overused now) is "encrypted in transit and at rest".
 </details>
 
 ### A04:2021 Insecure Design
 
 Add JumpWire!
 
-Add API Gateway!
+#### Introducing API Gateway
+
+An API gateway is an application that sits in front of the API and acts as a single entry point that routes client API requests to your backend microservices. It is useful for adding additional security controls without needing to modify the backend microservices themselves.
+
+We'll use an API gateway to move authentication and authorization out of our Express app. Then we'll add security features, such as `fail2ban`, which can protect against denial-of-service attacks.
+
+K3s comes with a reverse proxy and HTTP ingress controller called Traefik. It has an ecosystem of middleware plugins for extending the capabilities of the proxy to add gateway functionality.
+
+Let's start by adding JWT authentication and authorization to Traefik, so we can move this logic out of Express. We'll use the [traefik-jwt-plugin](https://plugins.traefik.io/plugins/62947304108ecc83915d7782/jwt-access-policy).
+
+First we extend the default k3s traefik configuration to add the plugin. Create the following file at `/var/lib/rancher/k3s/server/manifests/traefik-config.yaml`:
+
+```yaml
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    experimental:
+      plugins:
+        traefik-jwt-plugin:
+          moduleName: "github.com/team-carepay/traefik-jwt-plugin"
+          version: "v0.5.1"
+```
+
+Then to install the middleware, use the following command:
+
+```shell
+$ kubectl apply -f kubernetes/traefik-jwt.yaml
+middleware.traefik.containo.us/traefik-jwt-plugin created
+```
+
+And restart traefik:
+
+```shell
+$ kubectl rollout restart deployment traefik -n kube-system
+deployment.apps/traefik restarted
+```
+
+[CONFIGURE OPA]
+
+We'll do the same to install [fail2ban](https://plugins.traefik.io/plugins/628c9ebcffc0cd18356a979f/fail2-ban)
+
+Add another plugin entry to `/var/lib/rancher/k3s/server/manifests/traefik-config.yaml`:
+
+```diff
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    experimental:
+      plugins:
+        traefik-jwt-plugin:
+          moduleName: "github.com/team-carepay/traefik-jwt-plugin"
+          version: "v0.5.1"
++        fail2ban:
++          moduleName: "github.com/tomMoulard/fail2ban"
++          version: "v0.6.6"
+```
+
+And install the middleware:
+
+```shell
+$ kubectl apply -f kubernetes/fail2ban.yaml
+middleware.traefik.containo.us/fail2ban created
+$ kubectl rollout restart deployment traefik -n kube-system
+deployment.apps/traefik restarted
+```
+
+You can port forward the `traefik` container to view the dashboard:
+
+```shell
+$ kubectl get pods -n kube-system
+NAME                                      READY   STATUS      RESTARTS       AGE
+traefik-56cfc7b59f-4xpqd                  1/1     Running     0              21s
+... other pods
+$ kubectl port-forward -n kube-system traefik-56cfc7b59f-4xpqd 9000:9000
+```
+
+Now open [http://localhost:9000/dashboard/#/](http://localhost:9000/dashboard/#/) in your browser, and you should see the middleware installed successfully:
+![](data/images/traefik-dashboard.png)
+
+
+<details>
+<summary>Go deeper</summary>
+Architecture design can impact the overall security of an application. By adding components that have a specific purpose, we can ensure that security is applied consistently across many microservices while also reducing the complexity of individual applications.
+
+As we introduce additional API routes, or background jobs, or even new web applications, the gateways can operate agnostic to the technology being used by microservices.
+
+[CWE-501](https://cwe.mitre.org/data/definitions/501.html) lays out the principle of "trust boundaries", which are logical divisions in an application which data moves across. Adding layers that are dedicated to controlling those boundaries give you more control over security.
+
+There is also a strategy called "defense in depth". This describes an approach of not relying on a single control to provide security for a large portion of an application. Instead there should be multiple controls enforcing security, so that when one is compromised, an attacker does not gain "keys to the kingdom". By adding gateways to manage connections between different parts of our archiecture, we decrease the likelihood that a failure can allow for all data to be stolen.
+</details>
 
 ### A05:2021 Security Misconfiguration
 
-Let's harden our web server by changing some default configuration and adding additional response headers. Web servers share information about themselves, which can be used to exploit zero-day vulnerabilties that may be discovered.
+Let's harden our web server by changing the default configuration and adding additional HTTP response headers. Web servers share information about themselves, which can be used to exploit zero-day vulnerabilties that may be discovered.
 
 For example, our API server adds a response header `X-Powered-By: Express`
 ```shell
