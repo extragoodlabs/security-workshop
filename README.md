@@ -633,6 +633,15 @@ app.use(cookieParser());
 
 If cookies were being used by our web application, we would also want to use a library such as [cookie-session](https://github.com/expressjs/cookie-session) to configure them to use HTTPs and only be readable via HTTP and not javascript.
 
+One thing that trips up devs is the `Content-Security-Policy` header. Trying to read one is tricky, it's a long list of keywords and urls. But this is a powerful header, as you can very granularly define where content on the page can be loaded from, which offers protection against all kinds of malicious attacks that try to hijack your visitors.
+
+Just keep in mind the header follows the following format:
+```
+[content type] 'self' [list of valid hosts for content type]; [repeat]
+```
+
+This is a [handy resource](https://content-security-policy.com/) listing content types and examples.
+
 
 <details>
 <summary>Go deeper</summary>
