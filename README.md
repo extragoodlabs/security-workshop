@@ -546,7 +546,11 @@ Now open [http://localhost:9000/dashboard/#/](http://localhost:9000/dashboard/#/
 
 #### Introducing JumpWire
 
-Um, what is JumpWire?
+Um, what is JumpWire? Similar to an API gateway that secures HTTP requests, JumpWire proxies and examines SQL queries made to a database. It provides access controls - authenticating clients who attempt to connect to the database. It also enforces authorization, by rejecting queries that attempt to access data that the client is not allowed to read or modify. There are also features for encrypting sensitive data, joining data across separate databases, and enterprise goodies like auditing who is accessing what data.
+
+What sets JumpWire apart from other access tools is its ability to identify different types, or classifications, of data that are commingled in the same database. Some examples of this are customer names and addresses, credit card numbers, passwords or other secrets, email addresses, etc. This enables devs who use JumpWire the ability to create access permissions based on the classification of data being queried, rather than managing permissions for particular tables or columns.
+
+There's not a well defined category for this kind of tool yet, but sometimes it's referred to as a "database firewall". Yet as more applications and analytical tools are connected directly to live databases, there is a growing need for security layers that govern requests and responses being processed by the database. Not unlike an API gateway for backend microservices.
 
 
 <details>
@@ -649,7 +653,7 @@ One overlooked aspect of how attackers operate is "filtering". This is when atta
 
 By default, web servers send information about their technology and version. If a server version is known to be vulnerable, it makes for an easy target.
 
-Additionally, absense of security headers in an HTTP response can indicate that a server has not been hardened.
+Additionally, absence of security headers in an HTTP response can indicate that a server has not been hardened.
 </details>
 
 ### A09:2021 Security Logging and Monitoring Failures
