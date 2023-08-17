@@ -19,11 +19,9 @@ The workshop is designed to teach security principles, as opposed to making spec
 
 ## 👀 Setup
 
-<details>
-<summary>Install Docker, k3s and kubectl</summary>
+Install Docker, k3s and kubectl
 
-
-tl;dr
+**tl;dr**:
 - Install [Docker](https://docs.docker.com/engine/install/)
 - Install and configure [k3d](https://k3d.io/v5.5.2/), a lightweight Kubernetes wrapper
 - Install [kubectl](https://kubernetes.io/docs/tasks/tools/)
@@ -48,8 +46,6 @@ $ k3d cluster list
 NAME       SERVERS   AGENTS   LOADBALANCER
 workshop   1/1       0/0      true
 ```
-
-
 
 After creating the cluster, your Kubernetes config (~/.kube/config) will automatically be updated. To use `kubectl` with the cluster:
 
@@ -86,8 +82,6 @@ postgres-0                  1/1     Running     0          2m7s
 api-7858bf6dc9-4szjp        1/1     Running     0          65s
 reconciler-28204936-kx2z9   0/1     Completed   0          21s
 ```
-
-</details>
 
 ## 🖧 Workshop
 
