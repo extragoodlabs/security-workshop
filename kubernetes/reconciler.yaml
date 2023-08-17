@@ -19,8 +19,7 @@ spec:
         spec:
           containers:
           - name: api
-            #image: ghcr.io/jumpwire-ai/fintech-devcon-api:latest
-            image: jumpwire/reconciler
+            image: ghcr.io/jumpwire-ai/fintech-devcon-reconciler:latest
             imagePullPolicy: IfNotPresent
             env:
             - name: APP_API_URL

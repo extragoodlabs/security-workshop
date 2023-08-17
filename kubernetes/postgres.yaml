@@ -29,6 +29,7 @@ spec:
       containers:
       - name: postgres
         image: ghcr.io/jumpwire-ai/fintech-devcon-postgres:latest
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 5432
           name: pgsql

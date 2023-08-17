@@ -32,6 +32,7 @@ spec:
       containers:
       - name: api
         image: ghcr.io/jumpwire-ai/fintech-devcon-api:latest
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 3000
           name: http
