@@ -25,6 +25,7 @@ Install Docker, k3s and kubectl
 - Install [Docker](https://docs.docker.com/engine/install/)
 - Install and configure [k3d](https://k3d.io/v5.5.2/), a lightweight Kubernetes wrapper
 - Install [kubectl](https://kubernetes.io/docs/tasks/tools/)
+- Install [mkcert](https://github.com/FiloSottile/mkcert)
 - Deploy the workshop services
 
 ### Overview
@@ -478,7 +479,190 @@ Encryption was invented thousands of years ago to protect information from falli
 
 #### Introducing HTTP connection encryption
 
-Add HTTPS!
+For issueing certificates, we'll be setting up [cert-manager](https://cert-manager.io/). This sits in our cluster and issues certificates based on metadata for running services. In a production environment, you would have cert-manager use something like HashiCorp Vault or LetsEncrypt to get valid short-lived certificates, but for this workshop we'll configure it to act as its own certificate authority.
+
+``` shell
+# setup cert-manager
+$ kubectl apply -f kubernetes/cert-manager.yaml
+
+# check that the pods are ready
+$ kubectl get pods --namespace cert-manager
+
+NAME                                      READY   STATUS    RESTARTS   AGE
+cert-manager-cainjector-f57bf6b76-d4rqh   1/1     Running   0          2m29s
+cert-manager-6c54667669-g2p7r             1/1     Running   0          2m29s
+cert-manager-webhook-79cbc7f748-f66tp     1/1     Running   0          2m29s
+```
+
+The first thing you'll need to configure after you've installed cert-manager is an Issuer or a ClusterIssuer. These are resources that represent certificate authorities (CAs) able to sign certificates in response to certificate signing requests.
+
+[Install mkcert](https://github.com/FiloSottile/mkcert#installation) if you haven't already. We'll use this to generate a new CA and bootstrap the TLS chain of trust. The CA will be imported into your system trust store and can be removed later with `mkcert -uninstall`.
+
+``` shell
+$ mkcert -install
+Sudo password:
+The local CA is now installed in the system trust store! ⚡️
+```
+
+`mkcert -CAROOT` will print out the location of the CA files. These will remain even if you uninstall the CA from your system store. We then import this CA into Kubernetes for cert-manager to use:
+
+``` shell
+# inject the CA key and cert as a secret
+$ kubectl -n cert-manager create secret generic ca-key-pair \
+  --from-file=tls.crt="$(mkcert -CAROOT)/rootCA.pem" \
+  --from-file=tls.key="$(mkcert -CAROOT)/rootCA-key.pem"
+secret/ca-key-pair created
+
+# also add the CA cert as a ConfigMap for use by any pods
+$ kubectl create configmap ca-cert --from-file=ca.crt="$(mkcert -CAROOT)/rootCA.pem"
+configmap/ca-cert created
+
+# create a ClusterIssuer to use the secret
+$ kubectl apply -f kubernetes/ca-clusterissuer.yaml
+clusterissuer.cert-manager.io/ca-issuer created
+
+# verify the ClusterIssuer
+$ kubectl get clusterissuer
+NAME        READY   AGE
+ca-issuer   True    60s
+```
+
+And now we can issue certificates for our services:
+
+``` shell
+$ kubectl apply -f kubernetes/certificate.yaml
+certificate.cert-manager.io/api created
+```
+
+This will cause cert-manager to issue certificates and store them in Secrets in Kubernetes. Each service will have its own certificate, issued by the same CA. We'll update our services to mount in those certificates and start using them:
+
+```diff
+// kubernetes/api.yaml
+     app: api
+ spec:
+   ports:
+-   - port: 80
++   - port: 443
+      targetPort: http
+      name: http
+   selector:
+
+
+...
+
+       labels:
+         app: api
+     spec:
++      volumes:
++      - name: tls-cert
++        secret:
++          secretName: api-tls
+       containers:
+       - name: api
+         image: ghcr.io/jumpwire-ai/fintech-devcon-api:latest
+         imagePullPolicy: IfNotPresent
++        volumeMounts:
++        - name: tls-cert
++          mountPath: /etc/tls
++          readOnly: true
+         ports:
+         - containerPort: 3000
+           name: http
+           protocol: TCP
+         env:
++        - name: TLS_CERT_DIR
++          value: /etc/tls
+         - name: APP_DB_HOST
+           value: postgres
+```
+
+``` diff
+// src/api/bin/www
+ var app = require('../app');
+ var debug = require('debug')('api:server');
+-var http = require('http');
++var https = require('https');
++var fs = require('fs');
+
+...
+
+-var server = http.createServer(app);
++var certDir = process.env.TLS_CERT_DIR || '/etc/tls';
++var server = https.createServer({
++  key: fs.readFileSync(`${certDir}/tls.key`, 'utf8'),
++  cert: fs.readFileSync(`${certDir}/tls.crt`, 'utf8')
++}, app);
+```
+
+Deploy the API service with `./build-deploy api`, and start [port-forwarding](#connecting-to-the-api) again when it finishes. Now try an HTTPS request:
+
+
+``` shell
+curl -i https://localhost:3000/
+HTTP/1.1 404 Not Found
+X-Powered-By: Express
+Content-Type: application/json; charset=utf-8
+Content-Length: 19
+ETag: W/"13-ba++C/ABIZmZkDpO1b0jr1uB5S0"
+Date: Thu, 17 Aug 2023 20:16:17 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":"not found"}
+```
+
+It works! And CuRL validated the certificate - this is because we set `localhost` as one of the valid domains in the cert, and the CA bundle is installed locally from mkcert.
+
+![or it's magic](https://media.giphy.com/media/12NUbkX6p4xOO4/giphy.gif)
+
+You may have noticed pods from reconciler are now failing. It is still trying to use HTTP - we need to update it to use HTTPS for its API calls, including validation against the CA.
+
+``` diff
+// kubernetes/reconciler.yaml
+             imagePullPolicy: IfNotPresent
+             env:
+             - name: APP_API_URL
+-              value: http://api
++              value: https://api
++            - name: TLS_CERT_DIR
++              value: /etc/tls
++            volumeMounts:
++            - name: tls-cert
++              mountPath: /etc/tls
++              readOnly: true
+           restartPolicy: OnFailure
++          volumes:
++          - name: tls-cert
++            configMap:
++              name: ca-cert
+```
+
+``` diff
+// src/reconciler/src/main.rs
+ use reqwest::blocking::{Client, ClientBuilder};
+ use serde::Deserialize;
+ use std::collections::HashMap;
++use std::{env, fs::File, io::Read, path::Path};
+ use url::Url;
+
+...
+
+ fn build_client() -> Result<Client> {
+-    let client = ClientBuilder::new().build()?;
++    let cert_dir = env::var("TLS_CERT_DIR")?;
++    let cert_path = Path::new(&cert_dir).join("ca.crt");
++    let mut buf = Vec::new();
++    File::open(cert_path)?.read_to_end(&mut buf)?;
++    let cert = reqwest::Certificate::from_pem(&buf)?;
++    let client = ClientBuilder::new()
++        .tls_built_in_root_certs(false)
++        .add_root_certificate(cert)
++        .build()?;
+     Ok(client)
+ }
+```
+
+Once again, build and deploy the service with `./build-deploy reconciler`. The next time that the reconciler cron runs, it will connect to the API using HTTPS and will only trust certificates issued by our CA.
 
 #### Introducing database connection encryption
 
