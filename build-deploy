@@ -19,5 +19,6 @@ IMAGE="${BASE_IMAGE_NAME}-${SERVICE}"
 SRC_PATH="src/${SERVICE}"
 docker build -q -t "${IMAGE}" "${SRC_PATH}"
 k3d images import -c "${CLUSTER_NAME}" "${IMAGE}"
-kubectl rollout restart deployments/$SERVICE
+kubectl apply -f kubernetes/${SERVICE}.yaml
+kubectl rollout restart deployments/${SERVICE}
 kubectl rollout status -w deployment/api
