@@ -530,7 +530,7 @@ ca-issuer   True    60s
 And now we can issue certificates for our services:
 
 ``` shell
-$ kubectl apply -f kubernetes/certificate.yaml
+$ kubectl apply -f kubernetes/api-certificate.yaml
 certificate.cert-manager.io/api created
 ```
 
