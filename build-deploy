@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+set -eou pipefail
+
+CLUSTER_NAME=workshop
+BASE_IMAGE_NAME=ghcr.io/jumpwire-ai/fintech-devcon
+
+print_usage_and_exit() {
+    echo -e "Usage: build-deploy [api|reconciler]"
+    exit 1
+}
+
+if [ "$#" -ne 1 ]; then
+    print_usage_and_exit
+fi
+
+SERVICE=$1
+IMAGE="${BASE_IMAGE_NAME}-${SERVICE}"
+SRC_PATH="src/${SERVICE}"
+docker build -q -t "${IMAGE}" "${SRC_PATH}"
+k3d images import -c "${CLUSTER_NAME}" "${IMAGE}"
+kubectl rollout restart deployments/$SERVICE
+kubectl rollout status -w deployment/api

@@ -25,53 +25,66 @@ The workshop is designed to teach security principles, as opposed to making spec
 
 tl;dr
 - Install [Docker](https://docs.docker.com/engine/install/)
-- Install and configure [k3s](https://docs.k3s.io/installation) or [k3d](https://k3d.io/v5.5.2/) depending on your local operating system
+- Install and configure [k3d](https://k3d.io/v5.5.2/), a lightweight Kubernetes wrapper
 - Install [kubectl](https://kubernetes.io/docs/tasks/tools/)
-- **or** if you have an existing Kubernetes cluster running with administrative rights, you can skip this setup
+- Deploy the workshop services
 
 ### Overview
 
-This application runs as microservices in Kubernetes. To work through the steps locally, we recommend using [Rancher k3s](https://github.com/k3s-io/k3s), a lightweight Kubernetes installation that is "easy to install, half the memory, all in a binary less than 100 MB."
+This application runs as microservices in Kubernetes. To work through the steps locally, we'll be using [Rancher k3s](https://github.com/k3s-io/k3s), a lightweight Kubernetes installation that is "easy to install, half the memory, all in a binary less than 100 MB." k3s, like most Kubernetes distros, only runs on Linux so we'll also run [k3d](https://k3d.io) which wraps k3s in Docker to make it run anywhere.
 
-### macOS
 
-If you are using macOS, use [k3d](https://k3d.io/v5.5.2/) to run k3s. "k3d is a lightweight wrapper to run k3s in docker." So you will need docker installed on your local machine.
+After installing k3d, create a cluster to use for this workshop:
 
-After installing k3s, create a cluster to use for this workshop:
 ```shell
-mkdir /tmp/k3dvol
-k3d cluster create workshop --port 9080:80@loadbalancer --port 9443:443@loadbalancer --api-port 6443 --image=rancher/k3s:v1.26.6-k3s1 --volume /tmp/k3dvol:/var/lib/rancher/k3s/storage@all --k3s-arg '--disable=traefik@server:*'
+# create a directory to use for kubernetes persistence
+$ mkdir /tmp/k3dvol
+
+# create the cluster
+$ k3d cluster create workshop --port 9080:80@loadbalancer --port 9443:443@loadbalancer --api-port 6443 --image=rancher/k3s:v1.26.6-k3s1 --volume /tmp/k3dvol:/var/lib/rancher/k3s/storage@all
+
+# check the cluster
+$ k3d cluster list
+NAME       SERVERS   AGENTS   LOADBALANCER
+workshop   1/1       0/0      true
 ```
 
-### Linux (or WSL2)
 
-If you are using Windows with WSL2, you can install k3s without docker. We recommend downloading the [k3s binary directly](https://docs.k3s.io/installation/configuration#configuration-with-binary) instead of using the setup script provided by Rancher. The binary is "useful when performing quick tests that do not merit managing K3s as a system service", which is suitable for this workshop.
 
-```
- wget -q "https://github.com/k3s-io/k3s/releases/download/v1.25.11%2Bk3s1/k3s" -O /tmp/k3s
- sudo mv /tmp/k3s /usr/local/bin/k3s
- sudo chmod u+x bin/k3s
- k3s --version
-```
+After creating the cluster, your Kubernetes config (~/.kube/config) will automatically be updated. To use `kubectl` with the cluster:
 
-You should see the following output:
-
-```
-$ k3s --version
-k3s version v1.25.11+k3s1 (582f07cf)
-go version go1.19.10
-```
-
-To run k3s, use the following command:
-```
-sudo K3S_KUBECONFIG_MODE="644" k3s server
+```shell
+$ kubectl config current-context
+k3d-workshop
+$ kubectl get pods --all-namespaces
+NAMESPACE     NAME                                      READY   STATUS      RESTARTS   AGE
+kube-system   local-path-provisioner-76d776f6f9-9kswj   1/1     Running     0          20m
+kube-system   coredns-59b4f5bbd5-79tkd                  1/1     Running     0          20m
+kube-system   svclb-traefik-dfba91fb-8257n              2/2     Running     0          19m
+kube-system   helm-install-traefik-crd-rzjr2            0/1     Completed   0          20m
+kube-system   helm-install-traefik-sh6bn                0/1     Completed   1          20m
+kube-system   traefik-57c84cf78d-4nhf8                  1/1     Running     0          19m
+kube-system   metrics-server-68cf49699b-ppfc7           1/1     Running     0          20m
 ```
 
-After starting the server for the first time, various configuration files will be added to your OS. For example, to use `kubectl` with the k3s cluster, simply export the Rancher configuration file as an environment variable:
+Now deploy the services to the cluster:
 
+``` shell
+kubectl apply -f kubernetes/postgres.yaml
+kubectl rollout status -w statefulset/postgres
+kubectl apply -f kubernetes/api.yaml
+kubectl rollout status -w deployment/api
+kubectl apply -f kubernetes/reconciler.yaml
 ```
-$ export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
-$ kubectl get pods
+
+After a minute, the CronJob will trigger and you will see 3 pods (2 running and 1 completed):
+
+``` shell
+$ kubectl get pod
+NAME                        READY   STATUS      RESTARTS   AGE
+postgres-0                  1/1     Running     0          2m7s
+api-7858bf6dc9-4szjp        1/1     Running     0          65s
+reconciler-28204936-kx2z9   0/1     Completed   0          21s
 ```
 
 </details>
@@ -86,13 +99,73 @@ After making various software and infrastructure changes, the architecture will 
 
 ![Ending application architecture](./data/images/fintech_devcon-workshop-arch-end.svg)
 
+## Connecting to the API
+
+A service called `api` is created in Kubernetes that listens on port 80 and forwards it to the API service. You can forward a local connection to this service using kubectl:
+
+``` shell
+$ kubectl port-forward svc/api 3000:80
+Forwarding from 127.0.0.1:3000 -> 3000
+Forwarding from [::1]:3000 -> 3000
+```
+
+and then in another shell
+
+``` shell
+$ curl -i localhost:3000/users
+HTTP/1.1 200 OK
+X-Powered-By: Express
+Content-Type: application/json; charset=utf-8
+Content-Length: 20044
+ETag: W/"4e4c-iChHJ1SEQjA0Es1Jbd0WBH9mWLU"
+Date: Thu, 17 Aug 2023 18:18:23 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+[...json data...]
+```
+
 ## Modifying this application
 
-Use your favorite code editor to make modifications to this project. The authors favor emacs and VSCode. While the authors provide change diffs in the exercises below, they encourage you to make the updates without using copy/paste.
+Use your favorite code editor to make modifications to this project. While we provide change diffs in the exercises below, we encourage you to make the updates without using copy/paste.
 
-As you update code for each exercise, you can push your changes into the k3s cluster using the following commands:
+As you update code for each exercise, you can push your changes into the k8s cluster using the `build-deploy` script. To test this, we'll make a small change to the API service and redeploy it.
 
-[ADD KUBECTL DEPLOY COMMAND]
+Make the following code change to the API service:
+
+```diff
+// src/api/routes/index.js
+const express = require('express');
+const router = express.Router();
+
+router.get('/', function(req, res, next) {
+-    res.status(404).json({error: "unknown"});
++    res.status(404).json({error: "not found"});
+});
+
+module.exports = router;
+```
+
+Then run the script to deploy the change:
+
+``` shell
+$ ./build-deploy api
+sha256:6bbf513f4fd7db092d698e50424a00128a190223ab2b72ba8fc02c3b04ab2346
+INFO[0000] Importing image(s) into cluster 'workshop'
+INFO[0000] Starting new tools node...
+INFO[0000] Starting Node 'k3d-workshop-tools'
+INFO[0000] Saving 1 image(s) from runtime...
+INFO[0009] Importing images into nodes...
+INFO[0009] Importing images from tarball '/k3d/images/k3d-workshop-images-20230817143454.tar' into node 'k3d-workshop-server-0'...
+INFO[0011] Removing the tarball(s) from image volume...
+INFO[0012] Removing k3d-tools node...
+INFO[0012] Successfully imported image(s)
+INFO[0012] Successfully imported 1 image(s) into 1 cluster(s)
+deployment.apps/api restarted
+Waiting for deployment "api" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "api" rollout to finish: 1 old replicas are pending termination...
+deployment "api" successfully rolled out
+```
 
 ## 📝 Exercises
 This workshop has the following exercises
@@ -150,7 +223,7 @@ First let's add that library as a dependency to our API application. Update the 
     "debug": "~2.6.9",
 +    "dotenv": "~16.3.0",
     "express": "~4.16.1",
-+    "jsonwebtoken": "~9.0.0", 
++    "jsonwebtoken": "~9.0.0",
     "morgan": "~1.9.1",
     "pg": "^8.11.1",
     "sequelize": "^6.32.1"
@@ -164,7 +237,7 @@ Generate some randomness - [https://www.random.org/cgi-bin/randbyte?nbytes=64&fo
 
 Turn it into a single string by copying and pasting the random bytes into this CyberChef recipe - [https://gchq.github.io/CyberChef/#recipe=Remove_whitespace(true,true,true,true,true,false)](https://gchq.github.io/CyberChef/#recipe=Remove_whitespace(true,true,true,true,true,false))
 
-Now you should have something that looks like this - 
+Now you should have something that looks like this -
 > d318959b6b72c59433baf12fbf9d7c784d1b0b04f0399a63424a04a739283ac663e2a78d4139ae78dd9318999372caf707df14222a018a0333beb8265c92c150
 
 Add it to the API's [Dockerfile](src/api/Dockerfile) as an environment variable by replacing `[your token]` -
@@ -232,7 +305,7 @@ export function authenticate(req, res, next) {
   if (token == null) return res.sendStatus(401)
 
   jwt.verify(token[1], process.env.TOKEN_SECRET as string, (err, data) => {
-    
+
     if (err) {
       console.log(err);
       return res.sendStatus(401);
