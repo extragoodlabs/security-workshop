@@ -1,6 +1,7 @@
 use anyhow::{Error, Result};
 use config::Config;
 use itertools::Itertools;
+use reqwest::blocking::{Client, ClientBuilder};
 use serde::Deserialize;
 use std::collections::HashMap;
 use url::Url;
@@ -51,16 +52,17 @@ enum Response {
     Error { error: String },
 }
 
+fn build_client() -> Result<Client> {
+    let client = ClientBuilder::new().build()?;
+    Ok(client)
+}
+
 fn get_user_ids(base_url: &Url) -> Result<Vec<String>> {
     let mut url = base_url.clone();
     url.set_path("/users");
     url.set_query(Some("fields=id"));
 
-    let body: Response = reqwest::blocking::ClientBuilder::new()
-        .build()?
-        .get(url)
-        .send()?
-        .json()?;
+    let body: Response = build_client()?.get(url).send()?.json()?;
 
     match body {
         Response::IdList(id_list) => {
@@ -75,11 +77,7 @@ fn get_user_ids(base_url: &Url) -> Result<Vec<String>> {
 fn get_transaction_amounts(base_url: &Url) -> Result<Vec<Account>> {
     let mut url = base_url.clone();
     url.set_path("/transactions");
-    let body: Response = reqwest::blocking::ClientBuilder::new()
-        .build()?
-        .get(url)
-        .send()?
-        .json()?;
+    let body: Response = build_client()?.get(url).send()?.json()?;
 
     match body {
         Response::TransactionList(mut transactions) => {
