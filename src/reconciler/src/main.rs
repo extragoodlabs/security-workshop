@@ -1,8 +1,8 @@
+use anyhow::{Error, Result};
 use config::Config;
 use itertools::Itertools;
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::error::Error;
 use url::Url;
 
 #[derive(Deserialize, Debug)]
@@ -51,26 +51,35 @@ enum Response {
     Error { error: String },
 }
 
-fn get_user_ids(base_url: &Url) -> Result<Vec<String>, Box<dyn Error>> {
+fn get_user_ids(base_url: &Url) -> Result<Vec<String>> {
     let mut url = base_url.clone();
     url.set_path("/users");
     url.set_query(Some("fields=id"));
-    let body: Response = reqwest::blocking::get(url)?.json()?;
+
+    let body: Response = reqwest::blocking::ClientBuilder::new()
+        .build()?
+        .get(url)
+        .send()?
+        .json()?;
 
     match body {
         Response::IdList(id_list) => {
             let ids = id_list.into_iter().map(|x| x.id.to_string()).collect();
             Ok(ids)
         }
-        Response::Error { error } => Err(Box::<dyn Error>::from(error)),
-        _ => Err(Box::<dyn Error>::from("unexpected user response type")),
+        Response::Error { error } => Err(Error::msg(error)),
+        _ => Err(Error::msg("unexpected user response type")),
     }
 }
 
-fn get_transaction_amounts(base_url: &Url) -> Result<Vec<Account>, Box<dyn Error>> {
+fn get_transaction_amounts(base_url: &Url) -> Result<Vec<Account>> {
     let mut url = base_url.clone();
     url.set_path("/transactions");
-    let body: Response = reqwest::blocking::get(url)?.json()?;
+    let body: Response = reqwest::blocking::ClientBuilder::new()
+        .build()?
+        .get(url)
+        .send()?
+        .json()?;
 
     match body {
         Response::TransactionList(mut transactions) => {
@@ -89,10 +98,8 @@ fn get_transaction_amounts(base_url: &Url) -> Result<Vec<Account>, Box<dyn Error
                 .collect();
             Ok(amounts)
         }
-        Response::Error { error } => Err(Box::<dyn Error>::from(error)),
-        _ => Err(Box::<dyn Error>::from(
-            "unexpected transaction response type",
-        )),
+        Response::Error { error } => Err(Error::msg(error)),
+        _ => Err(Error::msg("unexpected transaction response type")),
     }
 }
 
@@ -102,7 +109,7 @@ fn reconcile_accounts(user_ids: Vec<String>, accounts: Vec<Account>) {
     println!("reconciled {:?} accounts", accounts.len());
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<()> {
     let config_file = std::env::var("APP_CONFIG_FILE").unwrap_or("settings.json".into());
 
     let config: HashMap<String, String> = Config::builder()
