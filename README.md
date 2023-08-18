@@ -867,12 +867,48 @@ Now open [http://localhost:9000/dashboard/#/](http://localhost:9000/dashboard/#/
 
 #### Introducing JumpWire
 
-Um, what is JumpWire? Similar to an API gateway that secures HTTP requests, JumpWire proxies and examines SQL queries made to a database. It provides access controls - authenticating clients who attempt to connect to the database. It also enforces authorization, by rejecting queries that attempt to access data that the client is not allowed to read or modify. There are also features for encrypting sensitive data, joining data across separate databases, and enterprise goodies like auditing who is accessing what data.
+Um, what is JumpWire? Similar to an API gateway that secures HTTP requests, [JumpWire](https://github.com/extragoodlabs/jumpwire) proxies and examines SQL queries made to a database. It provides access controls - authenticating clients who attempt to connect to the database. It also enforces authorization, by rejecting queries that attempt to access data that the client is not allowed to read or modify. There are also features for encrypting sensitive data, joining data across separate databases, and enterprise goodies like auditing who is accessing what data.
 
 What sets JumpWire apart from other access tools is its ability to identify different types, or classifications, of data that are commingled in the same database. Some examples of this are customer names and addresses, credit card numbers, passwords or other secrets, email addresses, etc. This enables devs who use JumpWire the ability to create access permissions based on the classification of data being queried, rather than managing permissions for particular tables or columns.
 
 There's not a well defined category for this kind of tool yet, but sometimes it's referred to as a "database firewall". Yet as more applications and analytical tools are connected directly to live databases, there is a growing need for security layers that govern requests and responses being processed by the database. Not unlike an API gateway for backend microservices.
 
+We'll deploy JumpWire to act as a firewall between our API service and database. First we'll generate secrets for the engine:
+
+``` shell
+# Create random secrets. We'll use the token later to interact with the API so we'll store it in on disk.
+$ mkdir -p ~/.config/jwctl
+$ cat /dev/urandom | base64 | head -c 64 > ~/.config/jwctl/.token
+$ kubectl create secret generic jumpwire-secrets \
+  --from-literal=JUMPWIRE_ENCRYPTION_KEY=$(openssl rand -base64 32) \
+  --from-literal=JUMPWIRE_ROOT_TOKEN=$(cat ~/.config/jwctl/.token)
+secret/jumpwire-secrets created
+```
+
+Then we can deploy the image to our Kubernetes cluster. This is already configured to generate a TLS certificate from cert-manager and inject it into the pod, just like we did with our other services.
+
+``` shell
+$ kubectl apply -f kubernetes/jumpwire.yaml
+certificate.cert-manager.io/jumpwire created
+service/jumpwire created
+configmap/jumpwire-config created
+deployment.apps/jumpwire created
+
+# wait for the deployment to be ready
+$ kubectl rollout status -w deployment/jumpwire
+Waiting for deployment "jumpwire" rollout to finish: 0 of 1 updated replicas are available...
+deployment "jumpwire" successfully rolled out
+```
+
+The [configuration](kubernetes/jumpwire.yaml) for JumpWire specifies a couple of interesting things to do with our data. We assign labels to some fields in the `users` tables:
+
+``` yaml
+credit_card: pci
+email: pii
+password_hash: secret
+```
+
+Then we define rules around those labels. The rules say that `pci` - which corresponds to the `credit_card` field - will be encrypted, and `secrets` - the `password_hash` field - will get dropped from results. There are exceptions for the rules that we can use later, but right now they will always apply.
 
 <details>
 <summary>Go deeper</summary>

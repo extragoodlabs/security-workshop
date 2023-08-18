@@ -1,0 +1,167 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: jumpwire
+spec:
+  secretName: jumpwire-tls
+  duration: 168h # 7d
+  renewBefore: 72h # 3d
+  subject:
+    organizations:
+      - fintech-devon-jumpwire-workshop
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  usages:
+    - server auth
+    - client auth
+  dnsNames:
+    # adding localhost to allow TLS validation when port-forwarding
+    # for local dev
+    - localhost
+    - jumpwire
+    - jumpwire.default.svc.cluster.local
+    - jumpwire.svc.cluster.local
+    - jumpwire.cluster.local
+  issuerRef:
+    name: ca-issuer
+    kind: ClusterIssuer
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: jumpwire
+  labels:
+    app: jumpwire
+spec:
+  ports:
+   - port: 80
+     targetPort: http
+     name: http
+   - port: 443
+     targetPort: https
+     name: https
+   - port: 5432
+     targetPort: postgres
+     name: postgres
+  selector:
+   app: jumpwire
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jumpwire-config
+  labels:
+    app: jumpwire
+data:
+  workshop.yaml: |
+    # configure a postgresql database
+    manifests:
+    - id: 0779b97a-c04a-48f9-9483-22e8b0487de4
+      name: app db
+      root_type: postgresql
+      credentials:
+        username: postgres
+        password: postgres
+      configuration:
+        type: postgresql
+        database: bank
+        hostname: postgres
+        ssl: true
+        port: 5432
+
+    # set labels on fields
+    proxy_schemas:
+    - id: f764dd5b-fb38-401a-b414-edfa8230fd11
+      name: users
+      manifest_id: 0779b97a-c04a-48f9-9483-22e8b0487de4
+      fields:
+        credit_card: pci
+        email: pii
+        password_hash: secret
+
+    policies:
+    # mark all `pci` data as needing to be encrypted
+    - id: d86448be-db98-4ec5-a635-576829e05ec7
+      name: encrypt pci
+      handling: encrypt
+      label: pci
+      apply_on_match: false
+      attributes:
+      - ["not:role:card_issuer"]
+    # block access to secrets in the DB
+    - id: 3b8a3774-483a-4b1a-af80-51967059e1f0
+      name: drop secrets
+      handling: drop_field
+      label: secret
+      apply_on_match: true
+      attributes:
+      - ["group:everyone"]
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jumpwire
+  labels:
+    app: jumpwire
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jumpwire
+  template:
+    metadata:
+      labels:
+        app: jumpwire
+    spec:
+      volumes:
+      - name: tls-cert
+        secret:
+          secretName: jumpwire-tls
+      - name: config
+        configMap:
+          name: jumpwire-config
+      containers:
+      - name: jumpwire
+        image: ghcr.io/extragoodlabs/jumpwire:latest
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - name: tls-cert
+          mountPath: /etc/tls
+          readOnly: true
+        - name: config
+          mountPath: /etc/jumpwire
+        ports:
+        - containerPort: 4004
+          name: http
+        - containerPort: 4443
+          name: https
+        - containerPort: 5432
+          name: postgres
+        livenessProbe:
+          httpGet:
+            port: http
+            path: /ping
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            port: http
+            path: /ping
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        env:
+        - name: JUMPWIRE_TLS_CERT
+          value: /etc/tls/tls.crt
+        - name: JUMPWIRE_TLS_KEY
+          value: /etc/tls/tls.key
+        - name: JUMPWIRE_TLS_CA
+          value: /etc/tls/ca.crt
+        - name: JUMPWIRE_CONFIG_PATH
+          value: /etc/jumpwire
+        envFrom:
+        - secretRef:
+            name: jumpwire-secrets
