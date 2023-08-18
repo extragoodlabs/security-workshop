@@ -666,32 +666,100 @@ Once again, build and deploy the service with `./build-deploy reconciler`. The n
 
 #### Introducing database connection encryption
 
-In addition to encrypting HTTP requests, we need to encrypt requests being made to our database. While it's not on by default, all modern databases support ssl to encrypt their connections.
+In addition to encrypting HTTP requests, we need to encrypt requests being made to our database. While it's not on by default, all modern databases support SSL to encrypt their connections.
 
-For PostgreSQL, let's update our [chart](kubernetes/postgres.yaml) to add a certificate used for encryption:
-[UPDATE POSTGRES.YAML]
+For PostgreSQL, let's update our [chart](kubernetes/postgres.yaml) to add a certificate used for encryption and tell cert-manager to issue it:
 
-We can configure our application to use ssl mode when connecting, by updating the database configuration in [default.json](src/api/config/default.json)
-```diff
-// src/api/config/default.json
-{
-  "database": {
-    "dialect": "postgres",
-    "host": "localhost",
-    "port": 5432,
-    "database": "bank",
-    "username": "postgres",
--    "password": "postgres"
-+    "password": "postgres",
-+    "dialectOptions": {
-+      "ssl": {
-+        "require": true
-+      }
-+    }
-  }
-}
+``` diff
+// kubernetes/postgres.yaml
+       labels:
+         app: postgres
+     spec:
++      volumes:
++      - name: tls-cert
++        secret:
++          secretName: postgres-tls
+       containers:
+       - name: postgres
+         image: ghcr.io/jumpwire-ai/fintech-devcon-postgres:latest
 
+....
+
+         volumeMounts:
+         - name: data
+           mountPath: /var/lib/postgresql/data
++        - name: tls-cert
++          mountPath: /etc/tls
++          readOnly: true
+         env:
+         - name: POSTGRES_USER
+           value: postgres
+         - name: POSTGRES_PASSWORD
+           value: postgres
++        - name: TLS_CERT_DIR
++          value: /etc/tls
+   volumeClaimTemplates:
+   - metadata:
+       name: data
 ```
+
+<details>
+<summary>Note on PostgreSQL in Docker</summary>
+The PostgreSQL Docker image is very particular about permissions and ownership of SSL certs. This can be hard to work with in Kubernetes, which will mount in the files from the secret owned by "root". To workaround this our postgres image has a custom entrypoint script that copies the certs out and chowns them before calling the main entrypoint. You can see the nitty gritty details in [data/entrypoint.sh](data/entrypoint.sh).
+</details>
+
+``` shell
+$ kubectl apply -f kubernetes/postgres-certificate.yaml
+certificate.cert-manager.io/postgres created
+
+$ kubectl apply -f kubernetes/postgres.yaml
+certificate.cert-manager.io/postgres created
+service/postgres unchanged
+statefulset.apps/postgres configured
+```
+
+If you have psql installed, you can try port forwarding to the PostgreSQL server and verifying that SSL works:
+
+``` shell
+# in one shell
+$ kubectl port-forward svc/postgres 5432:5432
+Forwarding from 127.0.0.1:5432 -> 5432
+Forwarding from [::1]:5432 -> 5432
+
+# then in another shell
+$ psql "postgresql://postgres:postgres@localhost:5432/bank?sslmode=verify-full&sslrootcert=$(mkcert -CAROOT)/rootCA.pem"
+psql (15.3, server 15.3)
+SSL connection (protocol: TLSv1.3, cipher: TLS_AES_256_GCM_SHA384, bits: 256, compression: off)
+Type "help" for help.
+
+bank=#
+```
+
+Now that PostgreSQL is setup with a TLS certificate, we can configure our application to use ssl mode when connecting by updating the database configuration in [default.js](src/api/config/default.js)
+
+```diff
+// src/api/config/default.js
++const fs = require('fs');
++
+ module.exports = {
+     database: {
+         dialect: "postgres",
+         host: "localhost",
+         port: 5432,
+         database: "bank",
+         username: "postgres",
+-        password: "postgres"
++        password: "postgres",
++        dialectOptions: {
++            ssl: {
++                ca: fs.readFileSync(`${process.env.TLS_CERT_DIR}/ca.crt`).toString()
++            }
++        }
+     }
+ }
+```
+
+Build and apply the changes - `./build-deploy api`. Once that's done, the API server will be connecting to PostgreSQL over TLS, and verifying the certificate with our CA.
 
 <details>
 <summary>Go deeper</summary>
