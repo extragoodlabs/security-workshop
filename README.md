@@ -13,7 +13,7 @@ During the workshop, a microservice application will be refactored to improve se
 |:--:|
 |*OWASP Top 10*|
 
-The microservice application contains and an API, a background worker, and a database. It runs in Kubernetes using Traefik as the network interface.
+The microservice application contains and an API, a background worker, and a database. It runs in Kubernetes using k3d as the microcluster.
 
 The workshop is designed to teach security principles, as opposed to making specific technology choices. Its goal is to help developers improve the security of their applications by implementing zero trust, updating default framework configurations, adding sensitive data protection, and monitoring events for anomalies.
 
@@ -27,6 +27,7 @@ Install Docker, k3s and kubectl
 - Install [kubectl](https://kubernetes.io/docs/tasks/tools/)
 - Install [mkcert](https://github.com/FiloSottile/mkcert)
 - Deploy the workshop services
+- [Add optional dependencies]
 
 ### Overview
 
@@ -77,7 +78,7 @@ kubectl apply -f kubernetes/reconciler.yaml
 After a minute, the CronJob will trigger and you will see 3 pods (2 running and 1 completed):
 
 ``` shell
-$ kubectl get pod
+$ kubectl get pods
 NAME                        READY   STATUS      RESTARTS   AGE
 postgres-0                  1/1     Running     0          2m7s
 api-7858bf6dc9-4szjp        1/1     Running     0          65s
@@ -168,8 +169,8 @@ deployment "api" successfully rolled out
 This workshop has the following exercises
 
 1. [A01:2021 Broken Access Control](#a012021-broken-access-control)
-1. [A02:2021 Cryptographic Failures](#a022021-cryptographic-failures)
 1. [A04:2021 Insecure Design](#a012021-insecure-design)
+1. [A02:2021 Cryptographic Failures](#a022021-cryptographic-failures)
 1. [A05:2021 Security Misconfiguration](#a012021-security-misconfiguration)
 1. [A09:2021 Security Logging and Monitoring Failures](#a012021-security-logging-and-monitoring-failures)
 
@@ -198,6 +199,8 @@ JSON Web Tokens, aka JWTs, are most useful for web application auth. They can be
 A JWT will be passed in an HTTP request header for all requests made to our API, and the API will validate the JWT before processing the request. Easy! (The only downside is that they are long strings, but other than that pretty perfect for auth).
 
 **IMPORTANT NOTE:** Information in a JWT is not secure, and they shouldn't include sensitive information like customer PII. Anyone can easily decode a JWT, just using tools or even the website [https://jwt.io/](https://jwt.io/). JWTs should also be treated like passwords, and not committed into source code or shared publicly.
+
+**IMPORTANT NOTE:** [Server-side revocation list]
 
 #### Adding JWT authentication to Express
 
@@ -444,6 +447,8 @@ const User = models.user;
 ```
 
 Now we're golden!
+
+[Add JWT to background job]
 
 <details>
 <summary>Go deeper</summary>
