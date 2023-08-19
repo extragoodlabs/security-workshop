@@ -275,6 +275,7 @@ To load the secret as an environment variable in our API, update the [api.yaml](
 Let's update the API [environment config](src/api/config/custom-environment-variables.json) to read the environment variable:
 
 ```diff
+// src/api/config/custom-environment-variables.json
 {
   "database": {
     "host": "APP_DB_HOST",
@@ -324,6 +325,15 @@ router.get('/', function(req, res, next) {
 
 module.exports = router;
 ```
+
+Test it out!
+```shell
+$ kubectl port-forward svc/api 3000:80
+$ curl -X POST http://localhost:3000/token -H 'Content-Type: application/json' -d '{"username":"myfaveusername"}'
+{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZWJ1c3N5bWFuIiwiaWF0IjoxNjkyNDYyMzUwLCJleHAiOjE2OTI0NjQxNTB9.79AE9f7DVCSGhfi8BC3SMSbbEbRCCf5H-URljMa7xcg"}
+```
+
+You can copy the token into [jwt.io](https://jwt.io/) and you should see your username in the payload under the `sub` field.
 
 Next, we'll create a middleware for Express to validate a JWT. Let's add a function that can validate a token. In [src/api](src/api/) create a file called `auth.js` -
 
