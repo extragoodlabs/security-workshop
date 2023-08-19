@@ -340,6 +340,7 @@ Next, we'll create a middleware for Express to validate a JWT. Let's add a funct
 ```javascript
 // src/api/auth.js
 const jwt = require('jsonwebtoken');
+const logger = require('./logger');
 
 const headerRegex = /^Bearer (.+)$/i;
 
@@ -353,7 +354,7 @@ const authenticate = (req, res, next) => {
     jwt.verify(token[1], process.env.TOKEN_SECRET as string, (err, data) => {
 
       if (err) {
-          console.log(err);
+          logger.error(err);
           return res.sendStatus(401);
       }
 
