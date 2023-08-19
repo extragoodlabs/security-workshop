@@ -950,6 +950,7 @@ Now that the credentials are in a Secret, we'll update our API deployment to use
 -          value: postgres
 +        envFrom:
 +        - secretRef:
++            name: api-postgres-login
 ```
 
 Run `./build-deploy api` to deploy the update. Now when you query the API service, the results will look different. The credit_card field will be encrypted and the password_hash field will have a null value for every user.
