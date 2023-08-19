@@ -257,7 +257,7 @@ const express = require('express');
 +const jwt = require('jsonwebtoken');
 +require("dotenv").config();
 const router = express.Router();
-+const token_secret = process.env.TOKEN_SECRET;
++const tokenSecret = process.env.TOKEN_SECRET;
 
 router.get('/', function(req, res, next) {
     res.status(404).json({error: "not found"});
@@ -276,11 +276,11 @@ router.get('/', function(req, res, next) {
     res.status(404).json({error: "not found"});
 });
 
-+app.post('/createToken', (_req, res) => {
-+  const data = { username: req.body.username }
-+  const token = jwt.sign(username, token_secret, { expiresIn: '1800s' });
++router.post('/token', (req, res) => {
++    const data = { username: req.body.username }
++    const token = jwt.sign(data, tokenSecret, { expiresIn: '1800s' });
 +
-+  res.json(token);
++    res.json({ token} );
 +});
 
 module.exports = router;
@@ -292,27 +292,31 @@ Next, we'll create a middleware for Express to validate a JWT. Let's add a funct
 // src/api/auth.js
 const jwt = require('jsonwebtoken');
 
-const headerRegex = /^Bearer (.+)$/i
+const headerRegex = /^Bearer (.+)$/i;
 
-export function authenticate(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  // authorization header is of the format "Bearer token"
-  const token = authHeader && authHeader.match(headerRegex);
+const authenticate = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    // authorization header is of the format "Bearer token"
+    const token = authHeader && authHeader.match(headerRegex);
 
-  if (token == null) return res.sendStatus(401)
+    if (token == null) return res.sendStatus(401)
 
-  jwt.verify(token[1], process.env.TOKEN_SECRET as string, (err, data) => {
+    jwt.verify(token[1], process.env.TOKEN_SECRET as string, (err, data) => {
 
-    if (err) {
-      console.log(err);
-      return res.sendStatus(401);
-    }
+      if (err) {
+          console.log(err);
+          return res.sendStatus(401);
+      }
 
-    req.user = data;
+      req.user = data;
 
-    next();
-  })
-}
+      next();
+    })
+};
+
+module.exports = {
+    authenticate,
+};
 ```
 
 This function will verify that a token is valid: signed by our secret and not expired. It also assigns the token data to a request variable called `user`.
@@ -323,7 +327,7 @@ We can use this function for endpoints. Let's update the [user routes](src/api/r
 // src/api/routes/users.js
 const express = require('express');
 const { models } = require('../database');
-+const { authenticate } = require('../authenticate);
++const { authenticate } = require('../auth');
 const User = models.user;
 
 const router = express.Router();
@@ -331,35 +335,30 @@ const router = express.Router();
 /* List all users. */
 -router.get('/', async function(req, res, next) {
 +router.get('/', authenticate, async function(req, res, next) {
-  //...
-});
+
+...
 
 /* Get a single user by ID. */
 -router.get('/:id', async function(req, res, next) {
 +router.get('/:id', authenticate, async function(req, res, next) {
-  //...
-});
+
+...
 
 /* Create a new user. */
 -router.post('/', async function(req, res, next) {
 +router.post('/', authenticate, async function(req, res, next) {
-  //...
-});
+
+...
 
 /* Update an existing user by ID. */
 -router.put('/:id', async function(req, res, next) {
 +router.put('/:id', authenticate, async function(req, res, next) {
-  //...
-});
+
+...
 
 /* Delete an existing user by ID. */
 -router.delete('/:id', async function(req, res, next) {
 +router.delete('/:id', authenticate, async function(req, res, next) {
-  //...
-});
-
-module.exports = router;
-
 ```
 
 Now each of these routes will require a valid JWT header to be present in the request to process it. Otherwise it will return a 401 response. We can make the same updates to the endpoints in [transactions.js](src/api/routes/transactions.js)
@@ -372,18 +371,13 @@ First we'll add a list of permissions to the JWT that we generate. Let's update 
 
 ```diff
 // src/api/routes/index.js
-//...
 
-router.get('/', function(req, res, next) {
-    res.status(404).json({error: "not found"});
-});
+router.post('/token', (req, res) => {
+-    const data = { username: req.body.username };
++    const data = { username: req.body.username, permissions: req.body.permissions };
+    const token = jwt.sign(data, tokenSecret, { expiresIn: '1800s' });
 
-app.post('/createToken', (_req, res) => {
--  const data = { username: req.body.username }
-+  const data = { username: req.body.username, permissions: req.body.permissions }
-  const token = jwt.sign(username, token_secret, { expiresIn: '1800s' });
-
-  res.json(token);
+    res.json({ token });
 });
 
 module.exports = router;
@@ -395,23 +389,29 @@ Next we'll add an authorization middleware function to `auth.js`. We wrap the mi
 // src/api/auth.js
 const jwt = require('jsonwebtoken');
 
-const headerRegex = /^Bearer (.+)$/i
+const headerRegex = /^Bearer (.+)$/i;
 
-export function authenticate(req, res, next) {
+const authenticate = (req, res, next) => {
   //...
-}
+};
 
-+export function authorize(permission) {
-+  return (req, res, next) => {
-+    const user = req.user
++const authorize = (permission) => {
++    return (req, res, next) => {
++        const user = req.user;
 +
-+    if (user && user.permissions.includes(permission)) {
-+      next();
-+    }
++        if (user && user.permissions.includes(permission)) {
++            next();
++        }
 +
-+    return res.sendStatus(401)
-+  }
-+}
++        return res.sendStatus(401);
++    };
++};
++
+module.exports = {
+    authenticate,
++    authorize,
+};
+
 ```
 
 Now let's update the endpoints that can create or update users to be accessible only to tokens with a `modify:user` permission in [users.js](src/api/routes/users.js) -
@@ -420,41 +420,27 @@ Now let's update the endpoints that can create or update users to be accessible 
 // src/api/routes/users.js
 const express = require('express');
 const { models } = require('../database');
--const { authenticate } = require('../authenticate);
-+const { authenticate, authorize } = require('../authenticate);
+-const { authenticate } = require('../auth');
++const { authenticate, authorize } = require('../auth');
 const User = models.user;
 
-const router = express.Router();
-
-/* List all users. */
-router.get('/', authenticate, async function(req, res, next) {
-  //...
-});
-
-/* Get a single user by ID. */
-router.get('/:id', authenticate, async function(req, res, next) {
-  //...
-});
+...
 
 /* Create a new user. */
 -router.post('/', authenticate, async function(req, res, next) {
 +router.post('/', [authenticate, authorize("modify:user")], async function(req, res, next) {
-  //...
-});
+
+...
 
 /* Update an existing user by ID. */
 -router.put('/:id', authenticate, async function(req, res, next) {
 +router.put('/:id', [authenticate, authorize("modify:user")], async function(req, res, next) {
-  //...
-});
+
+...
 
 /* Delete an existing user by ID. */
 -router.delete('/:id', authenticate, async function(req, res, next) {
 +router.delete('/:id', [authenticate, authorize("modify:user")], async function(req, res, next) {
-  //...
-});
-
-module.exports = router;
 ```
 
 Now we're golden!
