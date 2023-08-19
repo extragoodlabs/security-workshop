@@ -19,7 +19,7 @@ The workshop is designed to teach security principles, as opposed to making spec
 
 ## 👀 Setup
 
-Install Docker, k3s and kubectl
+Install Docker, k3d and kubectl
 
 **tl;dr**:
 - Install [Docker](https://docs.docker.com/engine/install/)
@@ -33,15 +33,21 @@ Install Docker, k3s and kubectl
 
 This application runs as microservices in Kubernetes. To work through the steps locally, we'll be using [Rancher k3s](https://github.com/k3s-io/k3s), a lightweight Kubernetes installation that is "easy to install, half the memory, all in a binary less than 100 MB." k3s, like most Kubernetes distros, only runs on Linux so we'll also run [k3d](https://k3d.io) which wraps k3s in Docker to make it run anywhere.
 
+First step is to clone this repo!
 
-After installing k3d, create a cluster to use for this workshop:
+```shell
+$ git clone git@github.com:jumpwire-ai/fintech-devcon-2023.git
+$ cd fintech-devcon-2023/
+```
+
+Install the dependencies above. After installing k3d, create a cluster to use for this workshop:
 
 ```shell
 # create a directory to use for kubernetes persistence
 $ mkdir /tmp/k3dvol
 
 # create the cluster
-$ k3d cluster create workshop --port 9080:80@loadbalancer --port 9443:443@loadbalancer --api-port 6443 --image=rancher/k3s:v1.26.6-k3s1 --volume /tmp/k3dvol:/var/lib/rancher/k3s/storage@all
+$ k3d cluster create workshop --port 9080:80@loadbalancer --port 9443:443@loadbalancer --api-port 6443 --image=rancher/k3s:v1.26.6-k3s1 --volume /tmp/k3dvol:/var/lib/rancher/k3s/storage@all --volume $(pwd)/kubernetes/traefik-config.yaml:/var/lib/rancher/k3s/server/manifests/traefik-config.yaml@server
 
 # check the cluster
 $ k3d cluster list
@@ -169,8 +175,8 @@ deployment "api" successfully rolled out
 This workshop has the following exercises
 
 1. [A01:2021 Broken Access Control](#a012021-broken-access-control)
-1. [A04:2021 Insecure Design](#a012021-insecure-design)
 1. [A02:2021 Cryptographic Failures](#a022021-cryptographic-failures)
+1. [A04:2021 Insecure Design](#a012021-insecure-design)
 1. [A05:2021 Security Misconfiguration](#a012021-security-misconfiguration)
 1. [A09:2021 Security Logging and Monitoring Failures](#a012021-security-logging-and-monitoring-failures)
 
@@ -221,7 +227,6 @@ First let's add that library as a dependency to our API application. Update the 
     "config": "^3.3.9",
     "cookie-parser": "~1.4.4",
     "debug": "~2.6.9",
-+    "dotenv": "~16.3.0",
     "express": "~4.16.1",
 +    "jsonwebtoken": "~9.0.0",
     "morgan": "~1.9.1",
@@ -231,25 +236,57 @@ First let's add that library as a dependency to our API application. Update the 
 }
 ```
 
-Now generate the signing key. This should be kept a secret! It's how the application will know that a token is valid.
+Now generate the signing key. This should be kept a secret! It's how the application will know that a token is valid. We'll create a random string that is stored by kubernetes and injected as an environment variable for our API backend.
 
-Generate some randomness - [https://www.random.org/cgi-bin/randbyte?nbytes=64&format=h](https://www.random.org/cgi-bin/randbyte?nbytes=64&format=h)
+Create some randomness:
 
-Turn it into a single string by copying and pasting the random bytes into this CyberChef recipe - [https://gchq.github.io/CyberChef/#recipe=Remove_whitespace(true,true,true,true,true,false)](https://gchq.github.io/CyberChef/#recipe=Remove_whitespace(true,true,true,true,true,false))
+```shell
+# Create random secret. We'll use the token later to interact with the API
+$ kubectl create secret generic api-secrets \
+  --from-literal=TOKEN_SECRET=$(cat /dev/urandom | base64 | head -c 64)
+secret/jumpwire-secrets created
+```
 
-Now you should have something that looks like this -
-> d318959b6b72c59433baf12fbf9d7c784d1b0b04f0399a63424a04a739283ac663e2a78d4139ae78dd9318999372caf707df14222a018a0333beb8265c92c150
+You can read the secret using this command:
 
-Add it to the API's [Dockerfile](src/api/Dockerfile) as an environment variable by replacing `[your token]` -
+```shell
+$ kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode
+pVNSnxcBPi4mKBfwvPlMHuNc1xyABEIvNcLC0F9fr2zoSJp9BA5FMbu4dbLpyWpm
+```
+
+To load the secret as an environment variable in our API, update the [api.yaml](kubernetes/api.yaml):
 
 ```diff
-// src/api/Dockerfile
-FROM node:18-alpine
+// kubernetes/api.yaml
+... 
+        env:
+        - name: APP_DB_HOST
+          value: postgres
+        - name: APP_DB_USERNAME
+          value: postgres
+        - name: APP_DB_PASSWORD
+          value: postgres
++        envFrom:
++        - secretRef:
++            name: api-secrets
 
-ENV NODE_ENV=production
-+ENV TOKEN_SECRET=[your token]
+```
 
-RUN apk add --no-cache tini
+Let's update the API [environment config](src/api/config/custom-environment-variables.json) to read the environment variable:
+
+```diff
+{
+  "database": {
+    "host": "APP_DB_HOST",
+    "port": "APP_DB_PORT",
+    "database": "APP_DB_DBNAME",
+    "username": "APP_DB_USERNAME",
+    "password": "APP_DB_PASSWORD"
+-  }
++  },
++  "token_secret": "TOKEN_SECRET"
+}
+
 ```
 
 Next up, let's add some code to our API [index.js](src/api/routes/index.js)  to generate tokens for our API. First load the secret from the environment variable -
@@ -258,9 +295,8 @@ Next up, let's add some code to our API [index.js](src/api/routes/index.js)  to 
 // src/api/routes/index.js
 const express = require('express');
 +const jwt = require('jsonwebtoken');
-+require("dotenv").config();
 const router = express.Router();
-+const tokenSecret = process.env.TOKEN_SECRET;
++const tokenSecret = require('config').get('token_secret');
 
 router.get('/', function(req, res, next) {
     res.status(404).json({error: "not found"});
@@ -773,72 +809,95 @@ When microservices start to proliferate, it becomes harder to ensure that every 
 
 An API gateway is an application that sits in front of the API and acts as a single entry point that routes client API requests to your backend microservices. It is useful for adding additional security controls without needing to modify the backend microservices themselves.
 
-We'll use an API gateway to move authentication and authorization out of our Express app. Then we'll add security features, such as `fail2ban`, which can protect against denial-of-service attacks.
+We'll use an API gateway to handle ingress (incoming) HTTP requests to our cluster. Then use it to add security features, such as `fail2ban`, which can protect against denial-of-service attacks.
 
 K3s comes with a reverse proxy and HTTP ingress controller called Traefik. It has an ecosystem of middleware plugins for extending the capabilities of the proxy to add gateway functionality.
 
-Let's start by adding JWT authentication and authorization to Traefik, so we can move this logic out of Express. We'll use the [traefik-jwt-plugin](https://plugins.traefik.io/plugins/62947304108ecc83915d7782/jwt-access-policy).
-
-First we extend the default k3s traefik configuration to add the plugin. Create the following file at `/var/lib/rancher/k3s/server/manifests/traefik-config.yaml`:
-
-```yaml
-apiVersion: helm.cattle.io/v1
-kind: HelmChartConfig
-metadata:
-  name: traefik
-  namespace: kube-system
-spec:
-  valuesContent: |-
-    experimental:
-      plugins:
-        traefik-jwt-plugin:
-          moduleName: "github.com/team-carepay/traefik-jwt-plugin"
-          version: "v0.5.1"
+Let's configure the cluster to use the gateway:
+```shell
+$ kubectl apply -f kubernetes/api-gateway.yaml
 ```
 
-Then to install the middleware, use the following command:
-
+Now we don't need to port-forward to make requests to our API microservice! You can simply run a curl command to the cluster:
 ```shell
-$ kubectl apply -f kubernetes/traefik-jwt.yaml
-middleware.traefik.containo.us/traefik-jwt-plugin created
+$ curl -i localhost:9080/
+HTTP/1.1 404 Not Found
+Content-Length: 21
+Content-Type: application/json; charset=utf-8
+Date: Fri, 18 Aug 2023 17:49:19 GMT
+Etag: W/"15-3jlv4LtvSUoQruAmr3ef7Px06u0"
+X-Powered-By: Express
+
+{"error":"not found"}
+```
+
+Now let's install the `fail2ban` middleware, by updating our [kubernetes/apigateway.yaml](kubernetes/api-gateway.yaml):
+
+```diff
++---
++apiVersion: traefik.containo.us/v1alpha1
++kind: Middleware
++metadata:
++  name: fail2ban
++  namespace: kube-system
++spec:
++  plugin:
++    fail2ban:
++      blacklist:
++        ip:
++          - 192.168.0.0/24
++      rules:
++        action: ""
++        actionAbuseipdb: ""
++        backend: ""
++        banaction: ""
++        banactionAllports: ""
++        bantime: 3h
++        chain: ""
++        destemail: ""
++        enabled: "true"
++        fail2banAgent: ""
++        filter: ""
++        findtime: 10m
++        ignorecommand: ""
++        logencoding: UTF-8
++        maxretry: "4"
++        mode: ""
++        mta: ""
++        ports: 0:8000
++        protocol: ""
++        sender: ""
++        urlregexp: ""
++        usedns: ""
++      whitelist:
++        ip:
++          - ::1
++          - 127.0.0.1
++
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-api-prefix
+
+...
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: apigateway
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-strip-api-prefix@kubernetescrd
++    traefik.ingress.kubernetes.io/router.middlewares: kube-system-fail2ban@kubernetescrd
+spec:
+
+...
 ```
 
 And restart traefik:
 
 ```shell
-$ kubectl rollout restart deployment traefik -n kube-system
-deployment.apps/traefik restarted
-```
-
-[CONFIGURE OPA]
-
-We'll do the same to install [fail2ban](https://plugins.traefik.io/plugins/628c9ebcffc0cd18356a979f/fail2-ban)
-
-Add another plugin entry to `/var/lib/rancher/k3s/server/manifests/traefik-config.yaml`:
-
-```diff
-apiVersion: helm.cattle.io/v1
-kind: HelmChartConfig
-metadata:
-  name: traefik
-  namespace: kube-system
-spec:
-  valuesContent: |-
-    experimental:
-      plugins:
-        traefik-jwt-plugin:
-          moduleName: "github.com/team-carepay/traefik-jwt-plugin"
-          version: "v0.5.1"
-+        fail2ban:
-+          moduleName: "github.com/tomMoulard/fail2ban"
-+          version: "v0.6.6"
-```
-
-And install the middleware:
-
-```shell
-$ kubectl apply -f kubernetes/fail2ban.yaml
-middleware.traefik.containo.us/fail2ban created
 $ kubectl rollout restart deployment traefik -n kube-system
 deployment.apps/traefik restarted
 ```

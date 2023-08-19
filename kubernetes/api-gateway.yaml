@@ -1,8 +1,9 @@
+---
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
   name: fail2ban
-  namespace: default
+  namespace: kube-system
 spec:
   plugin:
     fail2ban:
@@ -36,3 +37,33 @@ spec:
         ip:
           - ::1
           - 127.0.0.1
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-api-prefix
+  namespace: kube-system
+spec:
+  stripPrefix:
+    prefixes:
+      - /api/v1
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: apigateway
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-strip-api-prefix@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-fail2ban@kubernetescrd
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /api/v1
+        pathType: Prefix
+        backend:
+          service:
+            name: api
+            port:
+              number: 80

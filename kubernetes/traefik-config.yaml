@@ -1,0 +1,12 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    experimental:
+      plugins:
+        fail2ban:
+          moduleName: "github.com/tomMoulard/fail2ban"
+          version: "v0.6.6"
