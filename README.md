@@ -47,7 +47,16 @@ Install the dependencies above. After installing k3d, create a cluster to use fo
 $ mkdir /tmp/k3dvol
 
 # create the cluster
-$ k3d cluster create workshop --port 9080:80@loadbalancer --port 9443:443@loadbalancer --api-port 6443 --image=rancher/k3s:v1.26.6-k3s1 --volume /tmp/k3dvol:/var/lib/rancher/k3s/storage@all --volume $(pwd)/kubernetes/traefik-config.yaml:/var/lib/rancher/k3s/server/manifests/traefik-config.yaml@server
+$ k3d cluster create workshop \
+  --port 9080:80@loadbalancer \
+  --port 9443:443@loadbalancer \
+  --api-port 6443 \
+  --image=rancher/k3s:v1.26.6-k3s1 \
+  --volume /tmp/k3dvol:/var/lib/rancher/k3s/storage@all \
+  --volume "$(pwd)/kubernetes/traefik-config.yaml":'/var/lib/rancher/k3s/server/manifests/traefik-config.yaml@server:*' \
+  --volume "$(pwd)/kubernetes/audit.yaml":'/var/lib/rancher/k3s/server/audit.yaml@server:*' \
+  --k3s-arg '--kube-apiserver-arg=audit-policy-file=/var/lib/rancher/k3s/server/audit.yaml@server:*' \
+  --k3s-arg '--kube-apiserver-arg=audit-log-path=/var/log/kubernetes/kube-apiserver-audit.log@server:*'
 
 # check the cluster
 $ k3d cluster list
@@ -1219,7 +1228,9 @@ The logs can be really useful but they are a bit noisy right now. Let's narrow i
 
 <details>
 <summary>Go deeper</summary>
+There are a lot more interesting events you can define to turn this basic dashboard into a security machine. A good starting place is the Kubernetes [audit log](https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/). This is ingested by fluentd already and gives you insight into what users or services are doing on the Kubernetes control plane.
+
 Kibana can also define rules for generating alerts. This is a great way to bootstrap a basic SIEM - it won't have all of the power of a dedicated SIEM, but it's a fairly simple way to get something usable quickly.
 
 For more info, check out [Kibana's documentation](https://www.elastic.co/guide/en/kibana/current/alerting-getting-started.html).
-</details
+</details>
