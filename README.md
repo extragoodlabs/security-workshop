@@ -277,8 +277,8 @@ router.get('/', function(req, res, next) {
 });
 
 +router.post('/token', (req, res) => {
-+    const data = { username: req.body.username }
-+    const token = jwt.sign(data, tokenSecret, { expiresIn: '1800s' });
++    const claims = { sub: req.body.username }
++    const token = jwt.sign(claims, tokenSecret, { expiresIn: '1800s' });
 +
 +    res.json({ token} );
 +});
@@ -373,9 +373,9 @@ First we'll add a list of permissions to the JWT that we generate. Let's update 
 // src/api/routes/index.js
 
 router.post('/token', (req, res) => {
--    const data = { username: req.body.username };
-+    const data = { username: req.body.username, permissions: req.body.permissions };
-    const token = jwt.sign(data, tokenSecret, { expiresIn: '1800s' });
+-    const claims = { sub: req.body.username };
++    const claims = { sub: req.body.username, permissions: req.body.permissions };
+    const token = jwt.sign(claims, tokenSecret, { expiresIn: '1800s' });
 
     res.json({ token });
 });
