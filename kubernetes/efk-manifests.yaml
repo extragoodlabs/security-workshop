@@ -154,7 +154,7 @@ spec:
           name: kibana
       containers:
       - name: kibana
-        image: kibana:8.8.1
+        image: docker.elastic.co/kibana/kibana:8.8.2
         ports:
         - containerPort: 5601
           name: http
@@ -205,6 +205,36 @@ subjects:
 
 ---
 
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluentd-config
+  namespace: logging
+  labels:
+    app: fluentd
+data:
+  containers.conf: |
+    <source>
+      @type tail
+      @id in_tail_container_logs
+      path "#{ENV['FLUENT_CONTAINER_TAIL_PATH'] || '/var/log/containers/*.log'}"
+      pos_file "#{File.join('/var/log/', ENV.fetch('FLUENT_POS_EXTRA_DIR', ''), 'fluentd-containers.log.pos')}"
+      tag "#{ENV['FLUENT_CONTAINER_TAIL_TAG'] || 'kubernetes.*'}"
+      exclude_path "#{ENV['FLUENT_CONTAINER_TAIL_EXCLUDE_PATH'] || use_default}"
+      read_from_head true
+      @include ../tail_container_parse.conf
+    </source>
+
+    <filter kubernetes.var.log.containers.api-**>
+      @type parser
+      @id json_parser
+      format json
+      key_name message
+      reserve_time true
+      reserve_data true
+    </filter>
+---
+
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -240,13 +270,16 @@ spec:
             value: disable
           # Change container log parsing to match containerd format
           - name: FLUENT_CONTAINER_TAIL_PARSER_TYPE
-            value: "/^(?<time>.+) (?<stream>stdout|stderr) [^ ]* (?<log>.*)$/"
+            value: cri
         volumeMounts:
         - name: varlog
           mountPath: /var/log
         - name: varlibdockercontainers
           mountPath: /var/lib/docker/containers
           readOnly: true
+        - name: config
+          mountPath: /fluentd/etc/kubernetes/containers.conf
+          subPath: containers.conf
       terminationGracePeriodSeconds: 30
       volumes:
       - name: varlog
@@ -255,3 +288,6 @@ spec:
       - name: varlibdockercontainers
         hostPath:
           path: /var/lib/docker/containers
+      - name: config
+        configMap:
+          name: fluentd-config

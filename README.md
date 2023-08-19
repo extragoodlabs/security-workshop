@@ -258,7 +258,6 @@ To load the secret as an environment variable in our API, update the [api.yaml](
 
 ```diff
 // kubernetes/api.yaml
-... 
         env:
         - name: APP_DB_HOST
           value: postgres
@@ -1154,3 +1153,73 @@ Additionally, absence of security headers in an HTTP response can indicate that 
 >Security logging and monitoring came from the Top 10 community survey (#3), up slightly from the tenth position in the OWASP Top 10 2017. Logging and monitoring can be challenging to test, often involving interviews or asking if attacks were detected during a penetration test.
 
 Set up logs and alerts!
+
+Logging, and observability in general, is a deep topic with many approaches, tools, and vendors. In a security context, one aspect that's critical is aggregating access events into a single location. Even just starting with manual reviews gives a decent foundation that can be built on over time.
+
+We'll use the EFK stack to aggregate our logs:
+
+- Elasticsearch stores, indexes, and searches logs
+- Fluentd watches for new logs and events and sends them to Elasticsearch
+- Kibana visualizes our searches and can perform alerting
+
+In our setup, fluentd will run on every Kubernetes node and tail the logs of every pod. It will attach metadata to the log context (IP address, pod name, etc) before forewarding them. This mostly works out of the box - the full setup is in [kubernetes/efk-manifests.yaml](kubernetes/efk-manifests.yaml).
+
+``` shell
+# everything will be created under a new namespace, `logging`
+$ kubectl apply -f kubernetes/efk-manifests.yaml
+namespace/logging created
+service/elasticsearch created
+statefulset.apps/elasticsearch created
+service/kibana created
+configmap/kibana created
+deployment.apps/kibana created
+serviceaccount/fluentd created
+clusterrole.rbac.authorization.k8s.io/fluentd created
+clusterrolebinding.rbac.authorization.k8s.io/fluentd created
+daemonset.apps/fluentd created
+
+$ kubectl -n logging port-forward service/kibana 5601:5601
+Forwarding from 127.0.0.1:5601 -> 5601
+Forwarding from [::1]:5601 -> 5601
+```
+
+Kibana is now accessible at [http://localhost:5601](http://localhost:5601). When you connect in your browser, Kibana will prompt you to "Create data view".
+
+![](images/kibana-init.png)
+
+Click that button and enter a pattern to view our indexes in Elasticsearch. Set the Name to `logs` and the `Index pattern` to `logstash-*`. This will match the daily rotated logs indexes coming in from fluentd.
+
+![](images/kibana-index.png)
+
+Click `Save data view to Kibana` and you'll be redirected to the logs view you created. All of our logs for Kubernetes is available and can be filtered by labels. Let's take a look at an API log event - set the search bar to `kubernetes.labels.app : api and res.statusCode : 200`. Click the toggle on the left side of an event to view all the details about it (there may be more than one page in the details panel).
+
+![](images/kibana-details.png)
+
+Whoops! Our logs include all of the HTTP request headers - including the JWT! There are two approaches we can take to solve this. Either make the logs very minimal and explicitly set context we care about, or block specific pieces of context from being included. There are pros and cons for each; for HTTP headers we (usually) know what keys are sensitive, so taking the latter approach makes sense.
+
+Many logging frameworks support some form of redaction or filtering, and the library we're using [does as well](https://getpino.io/#/docs/redaction). We'll update the config to redact any authorization request headers:
+
+``` diff
+// src/api/app.js
+const app = express();
+-app.use(loggerMiddleware({ logger }));
++app.use(loggerMiddleware({
++    logger,
++    redact: ['req.headers.authorization'],
++}));
+```
+
+Deploy that and make a new request, or wait for the CronJob to fire. Kibana will now have the value `[REDACTED]` instead of the bearer token.
+
+![](images/kibana-redacted.png)
+
+The logs can be really useful but they are a bit noisy right now. Let's narrow it down to just security related events. Clear the search bar first for a clean start, then, hit the plus icon in the top left to add a filter. Choose `module` for the field name with an operator of `is` and a value of `auth`. Click "Add filter" - now the dashboard only shows events coming from our auth.js module! It's still a bit noisy, so let's choose which fields to show. For each field in the left, you can click the plus button to add it as an event column. Do this for `msg`, `kubernetes.labels.app`, `kubernetes.pod_name`, and `user` - now our dashboard is ready to go.
+
+![](images/kibana-filtered.png)
+
+<details>
+<summary>Go deeper</summary>
+Kibana can also define rules for generating alerts. This is a great way to bootstrap a basic SIEM - it won't have all of the power of a dedicated SIEM, but it's a fairly simple way to get something usable quickly.
+
+For more info, check out [Kibana's documentation](https://www.elastic.co/guide/en/kibana/current/alerting-getting-started.html).
+</details
