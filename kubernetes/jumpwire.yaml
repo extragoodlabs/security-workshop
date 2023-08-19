@@ -88,7 +88,7 @@ data:
       name: encrypt pci
       handling: encrypt
       label: pci
-      apply_on_match: false
+      apply_on_match: true
       attributes:
       - ["not:role:card_issuer"]
     # block access to secrets in the DB
@@ -98,7 +98,13 @@ data:
       label: secret
       apply_on_match: true
       attributes:
-      - ["group:everyone"]
+      - ["*"]
+
+    # create a client for the API service
+    client_auth:
+    - id: ccf334b5-2d5a-45ee-a6dd-c34caf99e4d4
+      name: api
+      manifest_id: 0779b97a-c04a-48f9-9483-22e8b0487de4
 ---
 
 apiVersion: apps/v1

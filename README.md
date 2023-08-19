@@ -900,7 +900,7 @@ Waiting for deployment "jumpwire" rollout to finish: 0 of 1 updated replicas are
 deployment "jumpwire" successfully rolled out
 ```
 
-The [configuration](kubernetes/jumpwire.yaml) for JumpWire specifies a couple of interesting things to do with our data. We assign labels to some fields in the `users` tables:
+Take a look at the [configuration](kubernetes/jumpwire.yaml) for JumpWire. It specifies a couple of interesting things to do with our data. We assign labels to some fields in the `users` tables:
 
 ``` yaml
 credit_card: pci
@@ -909,6 +909,80 @@ password_hash: secret
 ```
 
 Then we define rules around those labels. The rules say that `pci` - which corresponds to the `credit_card` field - will be encrypted, and `secrets` - the `password_hash` field - will get dropped from results. There are exceptions for the rules that we can use later, but right now they will always apply.
+
+We have a client defined as well, with an id of `ccf334b5-2d5a-45ee-a6dd-c34caf99e4d4`. Clients in JumpWire can be either dynamically authenticated or issued static credentials. For a service account like our API, we'll issue static credentials.
+
+``` shell
+# start port forwarding for the JumpWire API
+$ kubectl port-forward svc/jumpwire 4443:443
+Forwarding from 127.0.0.1:4443 -> 4443
+Forwarding from [::1]:4443 -> 4443
+
+# Use the jwctl to generate credentials. This will use the token we previously
+# saved to ~/.config/jwctl/.token
+$ jwctl -u https://localhost:4443 client token
+[INFO] Token generated:
+
+username: 0779b97a-c04a-48f9-9483-22e8b0487de4
+password: SFMyNTY.g2gDaAJtAAAAC29yZ19nZW5lcmljbQAAACRjY2YzMzRiNS0yZDVhLTQ1ZWUtYTZkZC1jMzRjYWY5OWU0ZDRuBgBM10gLigFiEswDAA.Zk31CwFi-ClR2ggAY6KJ7rMNvp5aHK7PXndrE8mCaU8
+
+# Save the login info to a new Kubernetes secret - make sure to use the password from your
+# deployment, copying the one below will not work!
+$ kubectl create secret generic api-postgres-login \
+  --from-literal=APP_DB_USERNAME=0779b97a-c04a-48f9-9483-22e8b0487de4 \
+  --from-literal=APP_DB_PASSWORD=SFMyNTY.g2gDaAJtAAAAC29yZ19nZW5lcmljbQAAACRjY2YzMzRiNS0yZDVhLTQ1ZWUtYTZkZC1jMzRjYWY5OWU0ZDRuBgBM10gLigFiEswDAA.Zk31CwFi-ClR2ggAY6KJ7rMNvp5aHK7PXndrE8mCaU8
+secret/api-postgres-login created
+```
+
+Now that the credentials are in a Secret, we'll update our API deployment to use them and connect through JumpWire to the database.
+
+``` diff
+// kubernetes/api.yaml
+         env:
+         - name: TLS_CERT_DIR
+           value: /etc/tls
+         - name: APP_DB_HOST
+-          value: postgres
++          value: jumpwire
+-        - name: APP_DB_USERNAME
+-          value: postgres
+-        - name: APP_DB_PASSWORD
+-          value: postgres
++        envFrom:
++        - secretRef:
+```
+
+Run `./build-deploy api` to deploy the update. Now when you query the API service, the results will look different. The credit_card field will be encrypted and the password_hash field will have a null value for every user.
+
+``` shell
+$ curl https://localhost:3000/users | jq '.[:2]'
+[
+  {
+    "id": 0,
+    "credit_card": "jumpwire_AQNwY2kBK0FFUy5HQ00uVjEuNzM0QzEzRTIwN0Y0NkU5NzE2N0U2ODFEQUM1MzA0QTHcmliKjSZ0EYz0MNgt9aGaVcNrsUDdBzRa/fs7SBQYEdDa2CIXEBSqg+k6",
+    "currency": "USD",
+    "email": "selena_autem@hotmail.com",
+    "is_active": true,
+    "country": "NO",
+    "num_logins": 71,
+    "password_hash": null,
+    "username": "arnulfo_consectetur",
+    "created_at": "2002-11-23T22:22:10.441Z"
+  },
+  {
+    "id": 1,
+    "credit_card": "jumpwire_AQNwY2kBK0FFUy5HQ00uVjEuNzM0QzEzRTIwN0Y0NkU5NzE2N0U2ODFEQUM1MzA0QTEHosM0BkbnHKssxskm+ssCRzNesWAplC7chfSF6GnU8FLI1Jc+AulmR9w7",
+    "currency": "USD",
+    "email": "earnestine_ipsam@hotmail.com",
+    "is_active": true,
+    "country": "AR",
+    "num_logins": 33,
+    "password_hash": null,
+    "username": "carson_et",
+    "created_at": "2010-06-02T22:10:45.724Z"
+  }
+]
+```
 
 <details>
 <summary>Go deeper</summary>
