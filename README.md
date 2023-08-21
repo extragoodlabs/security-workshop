@@ -1274,7 +1274,7 @@ Forwarding from [::1]:4443 -> 4443
 
 # Use the jwctl to generate credentials. This will use the token we previously
 # saved to ~/.config/jwctl/.token
-$ jwctl -u https://localhost:4443 client token
+$ jwctl -u https://localhost:4443 client token ccf334b5-2d5a-45ee-a6dd-c34caf99e4d4
 [INFO] Token generated:
 
 username: 0779b97a-c04a-48f9-9483-22e8b0487de4
