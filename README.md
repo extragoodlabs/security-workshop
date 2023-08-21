@@ -645,6 +645,48 @@ kubectl create secret generic reconciler-secrets \
 secret/jumpwire-secrets created
 ```
 
+And load the secret as an environment variable in the chart for the background job [reconciler.yaml](kubernetes/reconciler.yaml):
+
+```diff
+// kubernetes/reconciler.yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: reconciler
+  labels:
+    app: reconciler
+spec:
+  schedule: "*/2 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 5
+  failedJobsHistoryLimit: 10
+  startingDeadlineSeconds: 10
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: reconciler
+        spec:
+          containers:
+          - name: reconciler
+            image: ghcr.io/jumpwire-ai/fintech-devcon-reconciler:latest
+            imagePullPolicy: IfNotPresent
+            env:
+            - name: APP_API_URL
+              value: http://api
+          restartPolicy: OnFailure
++          envFrom:
++          - secretRef:
++              name: api-secrets
+```
+
+Let's redeploy the reconciler app, and it should recover from crash looping:
+
+```shell
+./build-deploy reconciler
+```
+
 <details>
 <summary>Go deeper</summary>
 
