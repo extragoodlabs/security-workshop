@@ -1303,6 +1303,8 @@ Now that the credentials are in a Secret, we'll update our API deployment to use
 -        - name: APP_DB_PASSWORD
 -          value: postgres
 +        envFrom:
+         - secretRef:
+             name: api-secrets
 +        - secretRef:
 +            name: api-postgres-login
 ```
@@ -1310,7 +1312,11 @@ Now that the credentials are in a Secret, we'll update our API deployment to use
 Run `./build-deploy api` to deploy the update. Now when you query the API service, the results will look different. The credit_card field will be encrypted and the password_hash field will have a null value for every user.
 
 ``` shell
-$ curl https://localhost:3000/users | jq '.[:2]'
+# generate a token for the API service
+$ set API_TOKEN=$(curl -X POST https://localhost:3000/token -H 'Content-Type: application/json' -d '{"username":"debussyman","permissions":"[\"read:user\",\"modify:user\"]"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)" | jq -r '.token')
+
+# curl the API
+$ curl -H "Authorization: Bearer $API_TOKEN" https://localhost:3000/users | jq '.[:2]'
 [
   {
     "id": 0,
