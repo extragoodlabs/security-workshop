@@ -675,10 +675,10 @@ spec:
             env:
             - name: APP_API_URL
               value: http://api
++            envFrom:
++            - secretRef:
++                name: reconciler-secrets
           restartPolicy: OnFailure
-+          envFrom:
-+          - secretRef:
-+              name: reconciler-secrets
 ```
 
 Let's redeploy the reconciler app, and it should recover from crash looping:
