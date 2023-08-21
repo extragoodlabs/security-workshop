@@ -61,26 +61,26 @@ k3d cluster create workshop \
 
 Check that its running!
 ```shell
-$ k3d cluster list
-NAME       SERVERS   AGENTS   LOADBALANCER
-workshop   1/1       0/0      true
+k3d cluster list
+# NAME       SERVERS   AGENTS   LOADBALANCER
+# workshop   1/1       0/0      true
 ```
 
 After creating the cluster, your Kubernetes config (~/.kube/config) will automatically be updated. To use `kubectl` with the cluster:
 
 ```shell
-$ kubectl config current-context
-k3d-workshop
+kubectl config current-context
+# k3d-workshop
 
-$ kubectl get pods --all-namespaces
-NAMESPACE     NAME                                      READY   STATUS      RESTARTS   AGE
-kube-system   local-path-provisioner-76d776f6f9-9kswj   1/1     Running     0          20m
-kube-system   coredns-59b4f5bbd5-79tkd                  1/1     Running     0          20m
-kube-system   svclb-traefik-dfba91fb-8257n              2/2     Running     0          19m
-kube-system   helm-install-traefik-crd-rzjr2            0/1     Completed   0          20m
-kube-system   helm-install-traefik-sh6bn                0/1     Completed   1          20m
-kube-system   traefik-57c84cf78d-4nhf8                  1/1     Running     0          19m
-kube-system   metrics-server-68cf49699b-ppfc7           1/1     Running     0          20m
+kubectl get pods --all-namespaces
+# NAMESPACE     NAME                                      READY   STATUS      RESTARTS   AGE
+# kube-system   local-path-provisioner-76d776f6f9-9kswj   1/1     Running     0          20m
+# kube-system   coredns-59b4f5bbd5-79tkd                  1/1     Running     0          20m
+# kube-system   svclb-traefik-dfba91fb-8257n              2/2     Running     0          19m
+# kube-system   helm-install-traefik-crd-rzjr2            0/1     Completed   0          20m
+# kube-system   helm-install-traefik-sh6bn                0/1     Completed   1          20m
+# kube-system   traefik-57c84cf78d-4nhf8                  1/1     Running     0          19m
+# kube-system   metrics-server-68cf49699b-ppfc7           1/1     Running     0          20m
 ```
 
 Now deploy the services to the cluster:
