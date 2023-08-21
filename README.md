@@ -454,6 +454,22 @@ const router = express.Router();
 
 Now each of these routes will require a valid JWT header to be present in the request to process it. Otherwise it will return a 401 response. We can make the same updates to the endpoints in [transactions.js](src/api/routes/transactions.js).
 
+Try a request without a token, and you should see a `401 Unauthorized` response:
+
+```shell
+$ curl -i http://localhost:3000/users
+HTTP/1.1 401 Unauthorized
+X-Powered-By: Express
+Content-Type: text/plain; charset=utf-8
+Content-Length: 12
+ETag: W/"c-dAuDFQrdjS3hezqxDTNgW7AOlYk"
+Date: Mon, 21 Aug 2023 20:35:43 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+Unauthorized
+```
+
 Finally, we'll secure the token endpoint using our token secret. We don't want just any John to be able to generate a token. Typically this endpoint would be secured with another authentication scheme, like a password login. For this exercise we'll just reuse the token signing secret.
 
 Add one more authentication middleware method to [auth.js](src/api/auth.js):
@@ -501,9 +517,8 @@ const tokenSecret = require("config").get("token_secret");
 
 Deploy the API and start port forwarding again:
 
-``` shell
+```shell
 ./build-deploy api
-kubectl port-forward svc/api 3000:80
 ```
 
 Now we can generate a token by reading the token secret from the Kubernetes secret `api-secrets`:
