@@ -69,6 +69,7 @@ After creating the cluster, your Kubernetes config (~/.kube/config) will automat
 ```shell
 $ kubectl config current-context
 k3d-workshop
+
 $ kubectl get pods --all-namespaces
 NAMESPACE     NAME                                      READY   STATUS      RESTARTS   AGE
 kube-system   local-path-provisioner-76d776f6f9-9kswj   1/1     Running     0          20m
@@ -192,7 +193,7 @@ curl -i localhost:3000/
 ```
 
 You'll see this result:
-```shell
+```text
 HTTP/1.1 404 Not Found
 X-Powered-By: Express
 Content-Type: application/json; charset=utf-8
