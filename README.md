@@ -264,8 +264,9 @@ First let's add that library as a dependency to our API application. Update the 
     "debug": "~2.6.9",
     "express": "~4.16.1",
 +    "jsonwebtoken": "~9.0.0",
-    "morgan": "~1.9.1",
     "pg": "^8.11.1",
+    "pino": "^8.15.0",
+    "pino-http": "^8.4.0",
     "sequelize": "^6.32.1"
   }
 }
@@ -1224,8 +1225,9 @@ Libraries make it easy to configure these settings, and Express has one called `
     "debug": "~2.6.9",
     "express": "~4.16.1",
 +    "helmet": "~7.0.0",
-    "morgan": "~1.9.1",
     "pg": "^8.11.1",
+    "pino": "^8.15.0",
+    "pino-http": "^8.4.0",
     "sequelize": "^6.32.1"
   }
 }
