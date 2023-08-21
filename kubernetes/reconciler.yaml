@@ -18,7 +18,7 @@ spec:
             app: reconciler
         spec:
           containers:
-          - name: api
+          - name: reconciler
             image: ghcr.io/jumpwire-ai/fintech-devcon-reconciler:latest
             imagePullPolicy: IfNotPresent
             env:
