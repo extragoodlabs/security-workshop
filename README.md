@@ -646,6 +646,68 @@ kubectl create secret generic reconciler-secrets \
   --from-literal=APP_TOKEN=$APP_TOKEN
 ```
 
+Then we'll update our reconciler code to add the token as a HTTP header:
+
+``` diff
+// src/reconciler/src/main.rs
+ use reqwest::blocking::{Client, ClientBuilder};
++use reqwest::header;
+ use serde::Deserialize;
+ use std::collections::HashMap;
+
+...
+
+-fn build_client() -> Result<Client> {
+-    let client = ClientBuilder::new().build()?;
++fn build_client(token: &String) -> Result<Client> {
++    let mut headers = header::HeaderMap::new();
++
++    let value = format!("Bearer {}", token);
++    let mut header_value = header::HeaderValue::from_bytes(value.as_bytes())?;
++    header_value.set_sensitive(true);
++    headers.insert(header::AUTHORIZATION, header_value);
++
++    let client = ClientBuilder::new().default_headers(headers).build()?;
+     Ok(client)
+ }
+
+-fn get_user_ids(base_url: &Url) -> Result<Vec<String>> {
++fn get_user_ids(base_url: &Url, token: &String) -> Result<Vec<String>> {
+     let mut url = base_url.clone();
+     url.set_path("/users");
+     url.set_query(Some("fields=id"));
+
+-    let body: Response = build_client()?.get(url).send()?.json()?;
++    let body: Response = build_client(token)?.get(url).send()?.json()?;
+
+     match body {
+         Response::IdList(id_list) => {
+@@ -74,10 +82,10 @@ fn get_user_ids(base_url: &Url) -> Result<Vec<String>> {
+     }
+ }
+
+-fn get_transaction_amounts(base_url: &Url) -> Result<Vec<Account>> {
++fn get_transaction_amounts(base_url: &Url, token: &String) -> Result<Vec<Account>> {
+     let mut url = base_url.clone();
+     url.set_path("/transactions");
+-    let body: Response = build_client()?.get(url).send()?.json()?;
++    let body: Response = build_client(token)?.get(url).send()?.json()?;
+
+...
+
+     let api_url = config.get("api_url").unwrap();
+     let base_url = Url::parse(api_url).unwrap();
++    let token = config.get("token").unwrap();
+
+-    let ids = get_user_ids(&base_url)?;
+-    let accounts = get_transaction_amounts(&base_url)?;
++    let ids = get_user_ids(&base_url, &token)?;
++    let accounts = get_transaction_amounts(&base_url, &token)?;
+     reconcile_accounts(ids, accounts);
+     Ok(())
+ }
+```
+
 And load the secret as an environment variable in the chart for the background job [reconciler.yaml](kubernetes/reconciler.yaml):
 
 ```diff
