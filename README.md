@@ -272,7 +272,7 @@ First let's add that library as a dependency to our API application. Update the 
 }
 ```
 
-Now generate the signing key. This should be kept a secret! It's how the application will know that a token is valid. We'll create a random string that is stored by kubernetes and injected as an environment variable for our API backend.
+Now generate the signing key. This should be kept a secret! It's how the application will know that a token is valid. We'll create a random string that is stored by Kubernetes and injected as an environment variable for our API backend.
 
 Create some randomness:
 
@@ -362,6 +362,11 @@ module.exports = router;
 ```
 
 Test it out!
+
+``` shell
+./build-deploy api
+```
+
 ```shell
 $ kubectl port-forward svc/api 3000:80
 $ curl -X POST http://localhost:3000/token -H 'Content-Type: application/json' -d '{"username":"myfaveusername"}'
