@@ -348,7 +348,7 @@ Next, we'll create a middleware for Express to validate a JWT. Let's add a funct
 ```javascript
 // src/api/auth.js
 const jwt = require('jsonwebtoken');
-const logger = require('./logger');
+const tokenSecret = require('config').get('token_secret');
 
 const headerRegex = /^Bearer (.+)$/i;
 
@@ -359,7 +359,7 @@ const authenticate = (req, res, next) => {
 
     if (token == null) return res.sendStatus(401)
 
-    jwt.verify(token[1], process.env.TOKEN_SECRET as string, (err, data) => {
+    jwt.verify(token[1], tokenSecret, (err, data) => {
 
       if (err) {
           logger.error(err);
@@ -419,7 +419,7 @@ const router = express.Router();
 +router.delete('/:id', authenticate, async function(req, res, next) {
 ```
 
-Now each of these routes will require a valid JWT header to be present in the request to process it. Otherwise it will return a 401 response. We can make the same updates to the endpoints in [transactions.js](src/api/routes/transactions.js)
+Now each of these routes will require a valid JWT header to be present in the request to process it. Otherwise it will return a 401 response. We can make the same updates to the endpoints in [transactions.js](src/api/routes/transactions.js).
 
 #### Adding authorization
 
@@ -430,9 +430,14 @@ First we'll add a list of permissions to the JWT that we generate. Let's update 
 ```diff
 // src/api/routes/index.js
 
+//...
+
 router.post('/token', (req, res) => {
 -    const claims = { sub: req.body.username };
-+    const claims = { sub: req.body.username, permissions: req.body.permissions };
++    const claims = {
++      sub: req.body.username,
++      "https://ftdc.jumpwire.io/permissions": JSON.parse(req.body.permissions)
++    };
     const token = jwt.sign(claims, tokenSecret, { expiresIn: '1800s' });
 
     res.json({ token });
@@ -446,6 +451,7 @@ Next we'll add an authorization middleware function to `auth.js`. We wrap the mi
 ```diff
 // src/api/auth.js
 const jwt = require('jsonwebtoken');
+const tokenSecret = require("config").get("token_secret");
 
 const headerRegex = /^Bearer (.+)$/i;
 
@@ -454,20 +460,20 @@ const authenticate = (req, res, next) => {
 };
 
 +const authorize = (permission) => {
-+    return (req, res, next) => {
-+        const user = req.user;
++  return (req, res, next) => {
++    const user = req.user;
 +
-+        if (user && user.permissions.includes(permission)) {
-+            next();
-+        }
-+
-+        return res.sendStatus(401);
-+    };
++    if (user && user["https://ftdc.jumpwire.io/permissions"].includes(permission)) {
++      next();
++    } else {
++      return res.sendStatus(401);
++    }
++  };
 +};
 +
 module.exports = {
     authenticate,
-+    authorize,
++    authorize
 };
 
 ```
@@ -482,26 +488,45 @@ const { models } = require('../database');
 +const { authenticate, authorize } = require('../auth');
 const User = models.user;
 
-...
+//...
+
+/* List all users. */
+-router.get("/", authenticate, async (req, res, next) => {
++router.get("/", authenticate, authorize("read:user"), async function(req, res, next) {
+
+//...
+
+/* Get a single user by ID. */
+-router.get("/:id", authenticate, async function (req, res, next) {
++router.get("/:id", authenticate, authorize("read:user"), async function(req, res, next) {
 
 /* Create a new user. */
 -router.post('/', authenticate, async function(req, res, next) {
-+router.post('/', [authenticate, authorize("modify:user")], async function(req, res, next) {
++router.post('/', authenticate, authorize("modify:user"), async function(req, res, next) {
 
-...
+//...
 
 /* Update an existing user by ID. */
 -router.put('/:id', authenticate, async function(req, res, next) {
-+router.put('/:id', [authenticate, authorize("modify:user")], async function(req, res, next) {
++router.put('/:id', authenticate, authorize("modify:user"), async function(req, res, next) {
 
-...
+//...
 
 /* Delete an existing user by ID. */
 -router.delete('/:id', authenticate, async function(req, res, next) {
-+router.delete('/:id', [authenticate, authorize("modify:user")], async function(req, res, next) {
++router.delete('/:id', authenticate, authorize("modify:user"), async function(req, res, next) {
 ```
 
-Now we're golden!
+Now we're golden! Let's generate a token:
+```shell
+$ curl -X POST http://localhost:3000/token -H 'Content-Type: application/json' -d '{"username":"debussyman","permissions":"[\"read:user\",\"modity:user\"]"}'
+{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZWJ1c3N5bWFuIiwiaHR0cHM6Ly9mdGRjLmp1bXB3aXJlLmlvL3Blcm1pc3Npb25zIjpbInJlYWQ6dXNlciIsIm1vZGl0eTp1c2VyIl0sImlhdCI6MTY5MjU3NjI2OSwiZXhwIjoxNjkyNTc4MDY5fQ.-hnjCcQh0rFWkALT2kEaVCD2Mm2bk_Lu2eK0P9jjyp4"}
+```
+
+Which can be used for requests to our API:
+```shell
+$ curl -i localhost:3000/users -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZWJ1c3N5bWFuIiwiaHR0cHM6Ly9mdGRjLmp1bXB3aXJlLmlvL3Blcm1pc3Npb25zIjpbInJlYWQ6dXNlciIsIm1vZGl0eTp1c2VyIl0sImlhdCI6MTY5MjU3NjI2OSwiZXhwIjoxNjkyNTc4MDY5fQ.-hnjCcQh0rFWkALT2kEaVCD2Mm2bk_Lu2eK0P9jjyp4"
+```
 
 [Add JWT to background job]
 
