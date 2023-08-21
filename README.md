@@ -36,8 +36,8 @@ This application runs as microservices in Kubernetes. To work through the steps 
 First step is to clone this repo!
 
 ```shell
-$ git clone git@github.com:jumpwire-ai/fintech-devcon-2023.git
-$ cd fintech-devcon-2023/
+git clone git@github.com:jumpwire-ai/fintech-devcon-2023.git
+cd fintech-devcon-2023/
 ```
 
 Install the dependencies above. After installing k3d, create a cluster to use for this workshop. Create a directory to use for kubernetes persistence:
