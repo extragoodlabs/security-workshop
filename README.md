@@ -1045,7 +1045,6 @@ $ kubectl apply -f kubernetes/postgres-certificate.yaml
 certificate.cert-manager.io/postgres created
 
 $ kubectl apply -f kubernetes/postgres.yaml
-certificate.cert-manager.io/postgres created
 service/postgres unchanged
 statefulset.apps/postgres configured
 ```
