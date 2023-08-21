@@ -472,8 +472,7 @@ const authenticate = (req, res, next) => {
 +
 +  next();
 +};
-
-
++
 module.exports = {
   authenticate,
 +  authenticateRoot,
@@ -499,10 +498,17 @@ const tokenSecret = require("config").get("token_secret");
 
 ```
 
-Now we can generate a token by reading the token secret from the kubernetes secret `api-secrets`:
+Deploy the API and start port forwarding again:
+
+``` shell
+./build-deploy api
+kubectl port-forward svc/api 3000:80
+```
+
+Now we can generate a token by reading the token secret from the Kubernetes secret `api-secrets`:
 
 ```shell
-$ curl -X POST http://localhost:3000/token -H 'Content-Type: application/json' -d '{"username":"debussyman"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)"
+curl -X POST http://localhost:3000/token -H 'Content-Type: application/json' -d '{"username":"debussyman"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)"
 ```
 
 
