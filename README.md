@@ -180,6 +180,31 @@ Waiting for deployment "api" rollout to finish: 1 old replicas are pending termi
 deployment "api" successfully rolled out
 ```
 
+Now in separate terminal tabs, start the port forward:
+
+```shell
+kubectl port-forward svc/api 3000:80
+```
+
+And issue a request to the API:
+```shell
+curl -i localhost:3000/
+```
+
+You'll see this result:
+```shell
+HTTP/1.1 404 Not Found
+X-Powered-By: Express
+Content-Type: application/json; charset=utf-8
+Content-Length: 21
+ETag: W/"15-3jlv4LtvSUoQruAmr3ef7Px06u0"
+Date: Mon, 21 Aug 2023 15:04:49 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":"not found"}
+```
+
 ## 📝 Exercises
 This workshop has the following exercises
 
