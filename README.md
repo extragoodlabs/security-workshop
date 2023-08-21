@@ -465,17 +465,17 @@ const authenticate = (req, res, next) => {
 }
 
 +const authenticateRoot = (req, res, next) => {
-+  const authHeader = req.headers["authorization"];
-+  const token = authHeader && authHeader.match(headerRegex);
++    const authHeader = req.headers["authorization"];
++    const token = authHeader && authHeader.match(headerRegex);
 +
-+  if (token == null || token[1] !== tokenSecret) return res.sendStatus(401);
++    if (token == null || token[1] !== tokenSecret) return res.sendStatus(401);
 +
-+  next();
++    next();
 +};
 +
 module.exports = {
-  authenticate,
-+  authenticateRoot,
+    authenticate,
++    authenticateRoot,
 };
 ```
 
@@ -526,8 +526,8 @@ First we'll add a list of permissions to the JWT that we generate. Let's update 
 router.post('/token', (req, res) => {
 -    const claims = { sub: req.body.username };
 +    const claims = {
-+      sub: req.body.username,
-+      "https://ftdc.jumpwire.io/permissions": JSON.parse(req.body.permissions)
++        sub: req.body.username,
++        "https://ftdc.jumpwire.io/permissions": JSON.parse(req.body.permissions)
 +    };
     const token = jwt.sign(claims, tokenSecret, { expiresIn: '1800s' });
 
@@ -555,21 +555,21 @@ const authenticateRoot = (req, res, next) => {
 };
 
 +const authorize = (permission) => {
-+  return (req, res, next) => {
-+    const user = req.user;
++    return (req, res, next) => {
++      const user = req.user;
 +
-+    if (user && user["https://ftdc.jumpwire.io/permissions"].includes(permission)) {
-+      next();
-+    } else {
-+      return res.sendStatus(401);
-+    }
-+  };
++      if (user && user["https://ftdc.jumpwire.io/permissions"].includes(permission)) {
++          next();
++      } else {
++          return res.sendStatus(401);
++      }
++    };
 +};
 +
 module.exports = {
-  authenticate,
-  authenticateRoot,
-+  authorize
+    authenticate,
+    authenticateRoot,
++    authorize,
 };
 
 ```
