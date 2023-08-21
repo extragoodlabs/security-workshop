@@ -889,17 +889,46 @@ Deploy the API service with `./build-deploy api`, and start [port forwarding](#c
 
 
 ``` shell
-curl -i https://localhost:3000/
-HTTP/1.1 404 Not Found
-X-Powered-By: Express
-Content-Type: application/json; charset=utf-8
-Content-Length: 19
-ETag: W/"13-ba++C/ABIZmZkDpO1b0jr1uB5S0"
-Date: Thu, 17 Aug 2023 20:16:17 GMT
-Connection: keep-alive
-Keep-Alive: timeout=5
-
-{"error":"not found"}
+curl -v https://localhost:3000/
+*   Trying 127.0.0.1:3000...
+* Connected to localhost (127.0.0.1) port 3000 (#0)
+* ALPN: offers h2
+* ALPN: offers http/1.1
+*  CAfile: /etc/ssl/cert.pem
+*  CApath: none
+* [CONN-0-0][CF-SSL] (304) (OUT), TLS handshake, Client hello (1):
+* [CONN-0-0][CF-SSL] (304) (IN), TLS handshake, Server hello (2):
+* [CONN-0-0][CF-SSL] (304) (IN), TLS handshake, Unknown (8):
+* [CONN-0-0][CF-SSL] (304) (IN), TLS handshake, Certificate (11):
+* [CONN-0-0][CF-SSL] (304) (IN), TLS handshake, CERT verify (15):
+* [CONN-0-0][CF-SSL] (304) (IN), TLS handshake, Finished (20):
+* [CONN-0-0][CF-SSL] (304) (OUT), TLS handshake, Finished (20):
+* SSL connection using TLSv1.3 / AEAD-AES256-GCM-SHA384
+* ALPN: server accepted http/1.1
+* Server certificate:
+*  subject: O=fintech-devon-jumpwire-workshop
+*  start date: Aug 21 16:40:14 2023 GMT
+*  expire date: Aug 28 16:40:14 2023 GMT
+*  subjectAltName: host "localhost" matched cert's "localhost"
+*  issuer: O=mkcert development CA; OU=hexedpackets@notmyrealcomputer.local (William); CN=mkcert hexedpackets@notmyrealcomputer.local (William Huba)
+*  SSL certificate verify ok.
+> GET / HTTP/1.1
+> Host: localhost:3000
+> User-Agent: curl/7.87.0
+> Accept: */*
+>
+* Mark bundle as not supporting multiuse
+< HTTP/1.1 404 Not Found
+< X-Powered-By: Express
+< Content-Type: application/json; charset=utf-8
+< Content-Length: 21
+< ETag: W/"15-3jlv4LtvSUoQruAmr3ef7Px06u0"
+< Date: Mon, 21 Aug 2023 16:49:20 GMT
+< Connection: keep-alive
+< Keep-Alive: timeout=5
+<
+* Connection #0 to host localhost left intact
+{"error":"not found"}⏎
 ```
 
 It works! And CuRL validated the certificate - this is because we set `localhost` as one of the valid domains in the cert, and the CA bundle is installed locally from mkcert.
