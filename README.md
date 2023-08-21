@@ -636,7 +636,29 @@ Deploy the API and start port forwarding again:
 kubectl port-forward svc/api 3000:80
 ```
 
-Now we're golden! Let's generate a token with permissions:
+Let's first create a token without any permissions:
+
+```shell
+curl -i -X POST http://localhost:3000/token -H 'Content-Type: application/json' -d '{"username":"debussyman","permissions":"[]"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)"
+```
+
+Then use that token to call an endpoint. We should get a `403 Forbidden` response
+
+```shell
+$ curl -i http://localhost:3000/users -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZWJ1c3N5bWFuIiwiaHR0cHM6Ly9mdGRjLmp1bXB3aXJlLmlvL3Blcm1pc3Npb25zIjpbXSwiaWF0IjoxNjkyNjUwMzE1LCJleHAiOjE2OTI2NTIxMTV9._CsjMJ8JxEnrilOOFh3YEdoJ78Q3WQAVRYD5cjChstI"
+HTTP/1.1 403 Forbidden
+X-Powered-By: Express
+Content-Type: text/plain; charset=utf-8
+Content-Length: 9
+ETag: W/"9-PatfYBLj4Um1qTm5zrukoLhNyPU"
+Date: Mon, 21 Aug 2023 20:56:00 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+Forbidden
+```
+
+That looks golden! Let's generate a token with permissions:
 
 ```shell
 curl -X POST http://localhost:3000/token -H 'Content-Type: application/json' -d '{"username":"debussyman","permissions":"[\"read:user\",\"modify:user\"]"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)"
