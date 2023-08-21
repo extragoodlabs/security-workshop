@@ -511,7 +511,6 @@ Now we can generate a token by reading the token secret from the Kubernetes secr
 curl -X POST http://localhost:3000/token -H 'Content-Type: application/json' -d '{"username":"debussyman"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)"
 ```
 
-
 #### Adding authorization
 
 Now that we have basic authentication in place, the next step is to add authorization. This will allow us to issue tokens that can only access some of the endpoints in our API.
@@ -613,16 +612,27 @@ const User = models.user;
 +router.delete('/:id', authenticate, authorize("modify:user"), async function(req, res, next) {
 ```
 
+Deploy the API and start port forwarding again:
+
+``` shell
+./build-deploy api
+kubectl port-forward svc/api 3000:80
+```
+
 Now we're golden! Let's generate a token with permissions:
+
 ```shell
-$ curl -X POST http://localhost:3000/token -H 'Content-Type: application/json' -d '{"username":"debussyman","permissions":"[\"read:user\",\"modity:user\"]"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)"
+curl -X POST http://localhost:3000/token -H 'Content-Type: application/json' -d '{"username":"debussyman","permissions":"[\"read:user\",\"modify:user\"]"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)"
 {"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZWJ1c3N5bWFuIiwiaHR0cHM6Ly9mdGRjLmp1bXB3aXJlLmlvL3Blcm1pc3Npb25zIjpbInJlYWQ6dXNlciIsIm1vZGl0eTp1c2VyIl0sImlhdCI6MTY5MjU3NjI2OSwiZXhwIjoxNjkyNTc4MDY5fQ.-hnjCcQh0rFWkALT2kEaVCD2Mm2bk_Lu2eK0P9jjyp4"}
 ```
 
 Which can be used for requests to our API:
+
 ```shell
 $ curl -i localhost:3000/users -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZWJ1c3N5bWFuIiwiaHR0cHM6Ly9mdGRjLmp1bXB3aXJlLmlvL3Blcm1pc3Npb25zIjpbInJlYWQ6dXNlciIsIm1vZGl0eTp1c2VyIl0sImlhdCI6MTY5MjU3NjI2OSwiZXhwIjoxNjkyNTc4MDY5fQ.-hnjCcQh0rFWkALT2kEaVCD2Mm2bk_Lu2eK0P9jjyp4"
 ```
+
+[Add CURL for POST that gets denied]
 
 [Add JWT to background job]
 
