@@ -353,7 +353,7 @@ router.get('/', function(req, res, next) {
 
 +router.post('/token', function(req, res) {
 +    const claims = { sub: req.body.username }
-+    const token = jwt.sign(claims, tokenSecret, { expiresIn: '1800s' });
++    const token = jwt.sign(claims, tokenSecret, { expiresIn: '6h' });
 +
 +    res.json({ token} );
 +});
