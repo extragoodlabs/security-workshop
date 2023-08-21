@@ -885,7 +885,7 @@ This will cause cert-manager to issue certificates and store them in Secrets in 
 +}, app);
 ```
 
-Deploy the API service with `./build-deploy api`, and start [port-forwarding](#connecting-to-the-api) again when it finishes. Now try an HTTPS request:
+Deploy the API service with `./build-deploy api`, and start [port forwarding](#connecting-to-the-api) again when it finishes - note that the port forwarding should now point to port 443 instead of 80! Now try an HTTPS request:
 
 
 ``` shell
