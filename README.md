@@ -324,7 +324,7 @@ router.get('/', function(req, res, next) {
     res.status(404).json({error: "not found"});
 });
 
-+router.post('/token', (req, res) => {
++router.post('/token', function(req, res) {
 +    const claims = { sub: req.body.username }
 +    const token = jwt.sign(claims, tokenSecret, { expiresIn: '1800s' });
 +
@@ -421,6 +421,59 @@ const router = express.Router();
 
 Now each of these routes will require a valid JWT header to be present in the request to process it. Otherwise it will return a 401 response. We can make the same updates to the endpoints in [transactions.js](src/api/routes/transactions.js).
 
+Finally, we'll secure the token endpoint using our token secret. We don't want just any John to be able to generate a token. Typically this endpoint would be secured with another authentication scheme, like a password login. For this exercise we'll just reuse the token signing secret.
+
+Add one more authentication middleware method to [auth.js](src/api/auth.js):
+
+```diff
+// src/api/auth.js
+
+const authenticate = (req, res, next) => {
+  //...
+}
+
++const authenticateRoot = (req, res, next) => {
++  const authHeader = req.headers["authorization"];
++  const token = authHeader && authHeader.match(headerRegex);
++
++  if (token == null || token[1] !== tokenSecret) return res.sendStatus(401);
++
++  next();
++};
+
+
+module.exports = {
+  authenticate,
++  authenticateRoot,
+};
+```
+
+And use it on the endpoint generating tokens in [index.js](src/api/routes/index.js):
+
+```diff
+// src/api/routes/index.js
+const express = require('express');
+const jwt = require('jsonwebtoken');
++const { authenticateRoot } = require("../auth");
+const router = express.Router();
+const tokenSecret = require("config").get("token_secret");
+
+//...
+
+-router.post('/token', function(req, res) {
++router.post('/token', authenticateRoot, function(req, res) {
+  //...
+});
+
+```
+
+Now we can generate a token by reading the token secret from the kubernetes secret `api-secrets`:
+
+```shell
+$ curl -X POST http://localhost:3000/token -H 'Content-Type: application/json' -d '{"username":"debussyman"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)"
+```
+
+
 #### Adding authorization
 
 Now that we have basic authentication in place, the next step is to add authorization. This will allow us to issue tokens that can only access some of the endpoints in our API.
@@ -459,6 +512,10 @@ const authenticate = (req, res, next) => {
   //...
 };
 
+const authenticateRoot = (req, res, next) => {
+  //...
+};
+
 +const authorize = (permission) => {
 +  return (req, res, next) => {
 +    const user = req.user;
@@ -472,8 +529,9 @@ const authenticate = (req, res, next) => {
 +};
 +
 module.exports = {
-    authenticate,
-+    authorize
+  authenticate,
+  authenticateRoot,
++  authorize
 };
 
 ```
@@ -517,9 +575,9 @@ const User = models.user;
 +router.delete('/:id', authenticate, authorize("modify:user"), async function(req, res, next) {
 ```
 
-Now we're golden! Let's generate a token:
+Now we're golden! Let's generate a token with permissions:
 ```shell
-$ curl -X POST http://localhost:3000/token -H 'Content-Type: application/json' -d '{"username":"debussyman","permissions":"[\"read:user\",\"modity:user\"]"}'
+$ curl -X POST http://localhost:3000/token -H 'Content-Type: application/json' -d '{"username":"debussyman","permissions":"[\"read:user\",\"modity:user\"]"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)"
 {"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZWJ1c3N5bWFuIiwiaHR0cHM6Ly9mdGRjLmp1bXB3aXJlLmlvL3Blcm1pc3Npb25zIjpbInJlYWQ6dXNlciIsIm1vZGl0eTp1c2VyIl0sImlhdCI6MTY5MjU3NjI2OSwiZXhwIjoxNjkyNTc4MDY5fQ.-hnjCcQh0rFWkALT2kEaVCD2Mm2bk_Lu2eK0P9jjyp4"}
 ```
 
