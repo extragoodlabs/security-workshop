@@ -388,27 +388,25 @@ const tokenSecret = require('config').get('token_secret');
 const headerRegex = /^Bearer (.+)$/i;
 
 const authenticate = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    // authorization header is of the format "Bearer token"
-    const token = authHeader && authHeader.match(headerRegex);
+  const authHeader = req.headers['authorization'];
+  // authorization header is of the format "Bearer token"
+  const token = authHeader && authHeader.match(headerRegex);
 
-    if (token == null) return res.sendStatus(401)
+  if (token == null) return res.sendStatus(401)
 
-    jwt.verify(token[1], tokenSecret, (err, data) => {
-
+  jwt.verify(token[1], tokenSecret, (err, data) => {
     if (err) {
-        logger.error(err);
-        return res.sendStatus(401);
+      logger.error(err);
+      return res.sendStatus(401);
     }
-
+      
     req.user = data;
-
     next();
-  })
+  });
 };
 
 module.exports = {
-    authenticate,
+  authenticate,
 };
 ```
 
