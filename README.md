@@ -380,6 +380,7 @@ Next, we'll create a middleware for Express to validate a JWT. Let's add a funct
 ```javascript
 // src/api/auth.js
 const jwt = require('jsonwebtoken');
+const logger = require('./logger');
 const tokenSecret = require('config').get('token_secret');
 
 const headerRegex = /^Bearer (.+)$/i;
@@ -393,15 +394,15 @@ const authenticate = (req, res, next) => {
 
     jwt.verify(token[1], tokenSecret, (err, data) => {
 
-      if (err) {
-          logger.error(err);
-          return res.sendStatus(401);
-      }
+    if (err) {
+        logger.error(err);
+        return res.sendStatus(401);
+    }
 
-      req.user = data;
+    req.user = data;
 
-      next();
-    })
+    next();
+  })
 };
 
 module.exports = {
@@ -541,6 +542,7 @@ Next we'll add an authorization middleware function to `auth.js`. We wrap the mi
 ```diff
 // src/api/auth.js
 const jwt = require('jsonwebtoken');
+const logger = require('./logger');
 const tokenSecret = require("config").get("token_secret");
 
 const headerRegex = /^Bearer (.+)$/i;
@@ -636,13 +638,12 @@ $ curl -i localhost:3000/users -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR
 
 The last step is to give our background job a token so that it can call our API! (If you run `kubectl get pods`, you might notice that the reconciler pod is crashing).
 
-Let's create another kubernetes secret with a valid JWT for the reconciler app to use:
+Let's create another Kubernetes secret with a valid JWT for the reconciler app to use:
 
 ```shell
 APP_TOKEN=$(curl -X POST http://localhost:3000/token -H 'Content-Type: application/json' -d '{"username":"debussyman","permissions":"[\"read:user\",\"modify:user\"]"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)" | jq -r '.token')
 kubectl create secret generic reconciler-secrets \
   --from-literal=APP_TOKEN=$APP_TOKEN
-secret/jumpwire-secrets created
 ```
 
 And load the secret as an environment variable in the chart for the background job [reconciler.yaml](kubernetes/reconciler.yaml):
