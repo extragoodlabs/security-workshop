@@ -66,4 +66,4 @@ spec:
           service:
             name: api
             port:
-              number: 80
+              name: http
