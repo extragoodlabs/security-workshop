@@ -25,3 +25,8 @@ if [ "${SERVICE}" == "api" ]; then
     kubectl rollout restart deployments/${SERVICE}
     kubectl rollout status -w deployment/api
 fi
+
+if [ "${SERVICE}" == "reconciler" ]; then
+    # delete previous jobs with the old config
+    kubectl delete job -l app=reconciler
+fi
