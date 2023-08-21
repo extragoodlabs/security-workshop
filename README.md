@@ -634,7 +634,16 @@ $ curl -i localhost:3000/users -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR
 
 [Add CURL for POST that gets denied]
 
-[Add JWT to background job]
+The last step is to give our background job a token so that it can call our API! (If you run `kubectl get pods`, you might notice that the reconciler pod is crashing).
+
+Let's create another kubernetes secret with a valid JWT for the reconciler app to use:
+
+```shell
+APP_TOKEN=$(curl -X POST http://localhost:3000/token -H 'Content-Type: application/json' -d '{"username":"debussyman","permissions":"[\"read:user\",\"modify:user\"]"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)" | jq -r '.token')
+kubectl create secret generic reconciler-secrets \
+  --from-literal=APP_TOKEN=$APP_TOKEN
+secret/jumpwire-secrets created
+```
 
 <details>
 <summary>Go deeper</summary>
