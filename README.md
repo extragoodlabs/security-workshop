@@ -40,25 +40,27 @@ $ git clone git@github.com:jumpwire-ai/fintech-devcon-2023.git
 $ cd fintech-devcon-2023/
 ```
 
-Install the dependencies above. After installing k3d, create a cluster to use for this workshop:
-
+Install the dependencies above. After installing k3d, create a cluster to use for this workshop. Create a directory to use for kubernetes persistence:
 ```shell
-# create a directory to use for kubernetes persistence
-$ mkdir /tmp/k3dvol
+mkdir /tmp/k3dvol
+```
 
-# create the cluster
-$ k3d cluster create workshop \
-  --port 9080:80@loadbalancer \
-  --port 9443:443@loadbalancer \
-  --api-port 6443 \
-  --image=rancher/k3s:v1.26.6-k3s1 \
-  --volume /tmp/k3dvol:/var/lib/rancher/k3s/storage@all \
-  --volume "$(pwd)/kubernetes/traefik-config.yaml":'/var/lib/rancher/k3s/server/manifests/traefik-config.yaml@server:*' \
-  --volume "$(pwd)/kubernetes/audit.yaml":'/var/lib/rancher/k3s/server/audit.yaml@server:*' \
-  --k3s-arg '--kube-apiserver-arg=audit-policy-file=/var/lib/rancher/k3s/server/audit.yaml@server:*' \
-  --k3s-arg '--kube-apiserver-arg=audit-log-path=/var/log/kubernetes/kube-apiserver-audit.log@server:*'
+And create the actual cluster:
+```shell
+k3d cluster create workshop \
+ --port 9080:80@loadbalancer \
+ --port 9443:443@loadbalancer \
+ --api-port 6443 \
+ --image=rancher/k3s:v1.26.6-k3s1 \
+ --volume /tmp/k3dvol:/var/lib/rancher/k3s/storage@all \
+ --volume "$(pwd)/kubernetes/traefik-config.yaml":'/var/lib/rancher/k3s/server/manifests/traefik-config.yaml@server:*' \
+ --volume "$(pwd)/kubernetes/audit.yaml":'/var/lib/rancher/k3s/server/audit.yaml@server:*' \
+ --k3s-arg '--kube-apiserver-arg=audit-policy-file=/var/lib/rancher/k3s/server/audit.yaml@server:*' \
+ --k3s-arg '--kube-apiserver-arg=audit-log-path=/var/log/kubernetes/kube-apiserver-audit.log@server:*'
+```
 
-# check the cluster
+Check that its running!
+```shell
 $ k3d cluster list
 NAME       SERVERS   AGENTS   LOADBALANCER
 workshop   1/1       0/0      true
@@ -355,7 +357,7 @@ router.get('/', function(req, res, next) {
 +    const claims = { sub: req.body.username }
 +    const token = jwt.sign(claims, tokenSecret, { expiresIn: '6h' });
 +
-+    res.json({ token} );
++    res.json({ token });
 +});
 
 module.exports = router;
@@ -540,9 +542,13 @@ First we'll add a list of permissions to the JWT that we generate. Let's update 
 
 router.post('/token', (req, res) => {
 -    const claims = { sub: req.body.username };
++    let permissions = []
++    try {
++        permissions = JSON.parse(req.body.permissions);
++    } catch {}
 +    const claims = {
 +        sub: req.body.username,
-+        "https://ftdc.jumpwire.io/permissions": JSON.parse(req.body.permissions)
++        "https://ftdc.jumpwire.io/permissions": permissions
 +    };
     const token = jwt.sign(claims, tokenSecret, { expiresIn: '1800s' });
 
