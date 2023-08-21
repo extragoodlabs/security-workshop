@@ -951,6 +951,9 @@ You may have noticed pods from reconciler are now failing. It is still trying to
 +              mountPath: /etc/tls
 +              readOnly: true
            restartPolicy: OnFailure
+           envFrom:
+            - secretRef:
+                name: reconciler-secrets
 +          volumes:
 +          - name: tls-cert
 +            configMap:
@@ -959,7 +962,6 @@ You may have noticed pods from reconciler are now failing. It is still trying to
 
 ``` diff
 // src/reconciler/src/main.rs
- use reqwest::blocking::{Client, ClientBuilder};
  use serde::Deserialize;
  use std::collections::HashMap;
 +use std::{env, fs::File, io::Read, path::Path};
@@ -967,14 +969,18 @@ You may have noticed pods from reconciler are now failing. It is still trying to
 
 ...
 
- fn build_client() -> Result<Client> {
--    let client = ClientBuilder::new().build()?;
+ fn build_client(token: &String) -> Result<Client> {
+
+ ...
+
+-    let client = ClientBuilder::new().default_headers(headers).build()?;
 +    let cert_dir = env::var("TLS_CERT_DIR")?;
 +    let cert_path = Path::new(&cert_dir).join("ca.crt");
 +    let mut buf = Vec::new();
 +    File::open(cert_path)?.read_to_end(&mut buf)?;
 +    let cert = reqwest::Certificate::from_pem(&buf)?;
 +    let client = ClientBuilder::new()
++        .default_headers(headers)
 +        .tls_built_in_root_certs(false)
 +        .add_root_certificate(cert)
 +        .build()?;
@@ -982,7 +988,13 @@ You may have noticed pods from reconciler are now failing. It is still trying to
  }
 ```
 
-Once again, build and deploy the service with `./build-deploy reconciler`. The next time that the reconciler cron runs, it will connect to the API using HTTPS and will only trust certificates issued by our CA.
+Once again, build and deploy the service:
+
+``` shell
+./build-deploy reconciler
+```
+
+The next time that the reconciler cron runs, it will connect to the API using HTTPS and will only trust certificates issued by our CA.
 
 #### Introducing database connection encryption
 
