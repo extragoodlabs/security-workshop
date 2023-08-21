@@ -85,7 +85,7 @@ kubectl get pods --all-namespaces
 
 Now deploy the services to the cluster:
 
-``` shell
+```shell
 kubectl apply -f kubernetes/postgres.yaml
 kubectl rollout status -w statefulset/postgres
 kubectl apply -f kubernetes/api.yaml
@@ -95,12 +95,12 @@ kubectl apply -f kubernetes/reconciler.yaml
 
 After a minute, the CronJob will trigger and you will see 3 pods (2 running and 1 completed):
 
-``` shell
-$ kubectl get pods
-NAME                        READY   STATUS      RESTARTS   AGE
-postgres-0                  1/1     Running     0          2m7s
-api-7858bf6dc9-4szjp        1/1     Running     0          65s
-reconciler-28204936-kx2z9   0/1     Completed   0          21s
+```shell
+kubectl get pods
+# NAME                        READY   STATUS      RESTARTS   AGE
+# postgres-0                  1/1     Running     0          2m7s
+# api-7858bf6dc9-4szjp        1/1     Running     0          65s
+# reconciler-28204936-kx2z9   0/1     Completed   0          21s
 ```
 
 ## 🖧 Workshop
