@@ -241,7 +241,7 @@ A JWT will be passed in an HTTP request header for all requests made to our API,
 
 **IMPORTANT NOTE:** Information in a JWT is not secure, and they shouldn't include sensitive information like customer PII. Anyone can easily decode a JWT, just using tools or even the website [https://jwt.io/](https://jwt.io/). JWTs should also be treated like passwords, and not committed into source code or shared publicly.
 
-**IMPORTANT NOTE:** [Server-side revocation list]
+**IMPORTANT NOTE:** Once generated, JWTs remain valid until the expiration time passes. In some scenarios, it may be urgently necessary for you to be able to invalidate particular tokens on the backend server. For example a customer might notify you that they accidentally leaked one of their tokens, and you need to prevent it from being used by someone else. To handle this case, it's useful to have a concept of a "revocation list", or a set of tokens or rules that will deny access, even if the token itself is valid.
 
 #### Adding JWT authentication to Express
 
@@ -469,7 +469,7 @@ const authenticate = (req, res, next) => {
 +    const authHeader = req.headers["authorization"];
 +    const token = authHeader && authHeader.match(headerRegex);
 +
-+    if (token == null || token[1] !== tokenSecret) return res.sendStatus(401);
++    if (token == null || token[1] !== tokenSecret) return res.sendStatus(403);
 +
 +    next();
 +};
