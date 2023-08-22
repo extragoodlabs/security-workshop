@@ -22,12 +22,17 @@ The workshop is designed to teach security principles, as opposed to making spec
 Install Docker, k3d and kubectl
 
 **tl;dr**:
-- Install [Docker](https://docs.docker.com/engine/install/)
+- Install [Docker](https://docs.docker.com/engine/install/) - the workhorse of the stack
 - Install and configure [k3d](https://k3d.io/v5.5.2/), a lightweight Kubernetes wrapper
-- Install [kubectl](https://kubernetes.io/docs/tasks/tools/)
-- Install [mkcert](https://github.com/FiloSottile/mkcert)
+- Install [kubectl](https://kubernetes.io/docs/tasks/tools/) - for interacting with the Kubernetes API
+- Install [mkcert](https://github.com/FiloSottile/mkcert) - for local cert generation
+- Install [jwctl](https://github.com/extragoodlabs/jwctl) - for interacting with the JumpWire API
 - Deploy the workshop services
-- [Add optional dependencies]
+- (optional) Some extra tools than can be helpful, but aren't required
+  - [jq](https://jqlang.github.io/jq/) - great for formatting JSON output
+  - [httpie](https://httpie.io/) - a more pleasant experience for working with JSON APIs. All examples in the README use curl, however.
+  - [nodejs](https://nodejs.org/en) and [yarn](https://classic.yarnpkg.com/lang/en/docs/install/) - not required, but if you want to run the API server locally instead of only in Kubernetes you'll need thse
+  - [rust](https://www.rust-lang.org/tools/install) - same as nodejs, but for the reconciler service
 
 ### Overview
 
@@ -398,7 +403,7 @@ const authenticate = (req, res, next) => {
       logger.error(err);
       return res.sendStatus(401);
     }
-      
+
     req.user = data;
     next();
   });
@@ -1168,7 +1173,7 @@ curl -i localhost:9080/api/v1/users
 # Date: Tue, 22 Aug 2023 01:28:12 GMT
 # Etag: W/"4e4c-iChHJ1SEQjA0Es1Jbd0WBH9mWLU"
 # X-Powered-By: Express
-# 
+#
 # [{"id":0,"credit_card":...
 ```
 
