@@ -53,7 +53,6 @@ k3d cluster create workshop \
  --api-port 6443 \
  --image=rancher/k3s:v1.26.6-k3s1 \
  --volume /tmp/k3dvol:/var/lib/rancher/k3s/storage@all \
- --volume "$(pwd)/kubernetes/traefik-config.yaml":'/var/lib/rancher/k3s/server/manifests/traefik-config.yaml@server:*' \
  --volume "$(pwd)/kubernetes/audit.yaml":'/var/lib/rancher/k3s/server/audit.yaml@server:*' \
  --k3s-arg '--kube-apiserver-arg=audit-policy-file=/var/lib/rancher/k3s/server/audit.yaml@server:*' \
  --k3s-arg '--kube-apiserver-arg=audit-log-path=/var/log/kubernetes/kube-apiserver-audit.log@server:*'
@@ -1151,9 +1150,9 @@ When microservices start to proliferate, it becomes harder to ensure that every 
 
 An API gateway is an application that sits in front of the API and acts as a single entry point that routes client API requests to your backend microservices. It is useful for adding additional security controls without needing to modify the backend microservices themselves.
 
-We'll use an API gateway to handle ingress (incoming) HTTP requests to our cluster. Then use it to add security features, such as `fail2ban`, which can protect against denial-of-service attacks.
+We'll use an API gateway to handle ingress (incoming) HTTP requests to our cluster. Then use it to add security features, such as request rate limiting, which can protect against credential-stuffing attacks.
 
-K3s comes with a reverse proxy and HTTP ingress controller called Traefik. It has an ecosystem of middleware plugins for extending the capabilities of the proxy to add gateway functionality.
+K3s comes with a reverse proxy and HTTP ingress controller called Traefik. It has a library of middleware plugins for extending the capabilities of the proxy to add gateway functionality.
 
 Let's configure the cluster to use the gateway:
 ```shell
@@ -1162,60 +1161,31 @@ $ kubectl apply -f kubernetes/api-gateway.yaml
 
 Now we don't need to port-forward to make requests to our API microservice! You can simply run a curl command to the cluster:
 ```shell
-$ curl -i localhost:9080/
-HTTP/1.1 404 Not Found
-Content-Length: 21
-Content-Type: application/json; charset=utf-8
-Date: Fri, 18 Aug 2023 17:49:19 GMT
-Etag: W/"15-3jlv4LtvSUoQruAmr3ef7Px06u0"
-X-Powered-By: Express
-
-{"error":"not found"}
+curl -i localhost:9080/api/v1/users
+# HTTP/1.1 200 OK
+# Content-Length: 20044
+# Content-Type: application/json; charset=utf-8
+# Date: Tue, 22 Aug 2023 01:28:12 GMT
+# Etag: W/"4e4c-iChHJ1SEQjA0Es1Jbd0WBH9mWLU"
+# X-Powered-By: Express
+# 
+# [{"id":0,"credit_card":...
 ```
 
-Now let's install the `fail2ban` middleware, by updating our [kubernetes/apigateway.yaml](kubernetes/api-gateway.yaml):
+Now let's install the [RateLimit](https://doc.traefik.io/traefik/middlewares/http/ratelimit/) middleware, by updating our [kubernetes/api-gateway.yaml](kubernetes/api-gateway.yaml):
 
 ```diff
+// kubernetes/api-gateway.yaml
 +---
 +apiVersion: traefik.containo.us/v1alpha1
 +kind: Middleware
 +metadata:
-+  name: fail2ban
++  name: http-ratelimit
 +  namespace: kube-system
 +spec:
-+  plugin:
-+    fail2ban:
-+      blacklist:
-+        ip:
-+          - 192.168.0.0/24
-+      rules:
-+        action: ""
-+        actionAbuseipdb: ""
-+        backend: ""
-+        banaction: ""
-+        banactionAllports: ""
-+        bantime: 3h
-+        chain: ""
-+        destemail: ""
-+        enabled: "true"
-+        fail2banAgent: ""
-+        filter: ""
-+        findtime: 10m
-+        ignorecommand: ""
-+        logencoding: UTF-8
-+        maxretry: "4"
-+        mode: ""
-+        mta: ""
-+        ports: 0:8000
-+        protocol: ""
-+        sender: ""
-+        urlregexp: ""
-+        usedns: ""
-+      whitelist:
-+        ip:
-+          - ::1
-+          - 127.0.0.1
-+
++  rateLimit:
++    average: 100
++    burst: 50
 ---
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
@@ -1230,28 +1200,21 @@ kind: Ingress
 metadata:
   name: apigateway
   annotations:
++    traefik.ingress.kubernetes.io/router.middlewares: kube-system-http-ratelimit@kubernetescrd
     traefik.ingress.kubernetes.io/router.middlewares: kube-system-strip-api-prefix@kubernetescrd
-+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-fail2ban@kubernetescrd
 spec:
 
 ...
 ```
 
-And restart traefik:
-
-```shell
-$ kubectl rollout restart deployment traefik -n kube-system
-deployment.apps/traefik restarted
-```
-
 You can port forward the `traefik` container to view the dashboard:
 
 ```shell
-$ kubectl get pods -n kube-system
-NAME                                      READY   STATUS      RESTARTS       AGE
-traefik-56cfc7b59f-4xpqd                  1/1     Running     0              21s
-... other pods
-$ kubectl port-forward -n kube-system traefik-56cfc7b59f-4xpqd 9000:9000
+kubectl get pods -n kube-system
+# NAME                                      READY   STATUS      RESTARTS       AGE
+# traefik-56cfc7b59f-4xpqd                  1/1     Running     0              21s
+# ... other pods
+kubectl port-forward -n kube-system traefik-56cfc7b59f-4xpqd 9000:9000
 ```
 
 Now open [http://localhost:9000/dashboard/#/](http://localhost:9000/dashboard/#/) in your browser, and you should see the middleware installed successfully:

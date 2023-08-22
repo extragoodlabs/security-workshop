@@ -2,46 +2,6 @@
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
-  name: fail2ban
-  namespace: kube-system
-spec:
-  plugin:
-    fail2ban:
-      blacklist:
-        ip:
-          - 192.168.0.0/24
-      rules:
-        action: ""
-        actionAbuseipdb: ""
-        backend: ""
-        banaction: ""
-        banactionAllports: ""
-        bantime: 3h
-        chain: ""
-        destemail: ""
-        enabled: "true"
-        fail2banAgent: ""
-        filter: ""
-        findtime: 10m
-        ignorecommand: ""
-        logencoding: UTF-8
-        maxretry: "4"
-        mode: ""
-        mta: ""
-        ports: 0:8000
-        protocol: ""
-        sender: ""
-        urlregexp: ""
-        usedns: ""
-      whitelist:
-        ip:
-          - ::1
-          - 127.0.0.1
-
----
-apiVersion: traefik.containo.us/v1alpha1
-kind: Middleware
-metadata:
   name: strip-api-prefix
   namespace: kube-system
 spec:
@@ -55,7 +15,6 @@ metadata:
   name: apigateway
   annotations:
     traefik.ingress.kubernetes.io/router.middlewares: kube-system-strip-api-prefix@kubernetescrd
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-fail2ban@kubernetescrd
 spec:
   rules:
   - http:
