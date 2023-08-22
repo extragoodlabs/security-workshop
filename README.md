@@ -122,25 +122,25 @@ After making various software and infrastructure changes, the architecture will 
 A service called `api` is created in Kubernetes that listens on port 80 and forwards it to the API service. You can forward a local connection to this service using kubectl:
 
 ``` shell
-$ kubectl port-forward svc/api 3000:80
-Forwarding from 127.0.0.1:3000 -> 3000
-Forwarding from [::1]:3000 -> 3000
+kubectl port-forward svc/api 3000:80
+# Forwarding from 127.0.0.1:3000 -> 3000
+# Forwarding from [::1]:3000 -> 3000
 ```
 
 and then in another shell
 
 ``` shell
-$ curl -i localhost:3000/users
-HTTP/1.1 200 OK
-X-Powered-By: Express
-Content-Type: application/json; charset=utf-8
-Content-Length: 20044
-ETag: W/"4e4c-iChHJ1SEQjA0Es1Jbd0WBH9mWLU"
-Date: Thu, 17 Aug 2023 18:18:23 GMT
-Connection: keep-alive
-Keep-Alive: timeout=5
-
-[...json data...]
+curl -i localhost:3000/users
+# HTTP/1.1 200 OK
+# X-Powered-By: Express
+# Content-Type: application/json; charset=utf-8
+# Content-Length: 20044
+# ETag: W/"4e4c-iChHJ1SEQjA0Es1Jbd0WBH9mWLU"
+# Date: Thu, 17 Aug 2023 18:18:23 GMT
+# Connection: keep-alive
+# Keep-Alive: timeout=5
+#
+# [...json data...]
 ```
 
 ## Modifying this application
@@ -167,24 +167,24 @@ module.exports = router;
 Then run the script to deploy the change:
 
 ``` shell
-$ ./build-deploy api
-sha256:6bbf513f4fd7db092d698e50424a00128a190223ab2b72ba8fc02c3b04ab2346
-INFO[0000] Importing image(s) into cluster 'workshop'
-INFO[0000] Starting new tools node...
-INFO[0000] Starting Node 'k3d-workshop-tools'
-INFO[0000] Saving 1 image(s) from runtime...
-INFO[0009] Importing images into nodes...
-INFO[0009] Importing images from tarball '/k3d/images/k3d-workshop-images-20230817143454.tar' into node 'k3d-workshop-server-0'...
-INFO[0011] Removing the tarball(s) from image volume...
-INFO[0012] Removing k3d-tools node...
-INFO[0012] Successfully imported image(s)
-INFO[0012] Successfully imported 1 image(s) into 1 cluster(s)
-service/api unchanged
-deployment.apps/api unchanged
-deployment.apps/api restarted
-Waiting for deployment "api" rollout to finish: 1 old replicas are pending termination...
-Waiting for deployment "api" rollout to finish: 1 old replicas are pending termination...
-deployment "api" successfully rolled out
+./build-deploy api
+# sha256:6bbf513f4fd7db092d698e50424a00128a190223ab2b72ba8fc02c3b04ab2346
+# INFO[0000] Importing image(s) into cluster 'workshop'
+# INFO[0000] Starting new tools node...
+# INFO[0000] Starting Node 'k3d-workshop-tools'
+# INFO[0000] Saving 1 image(s) from runtime...
+# INFO[0009] Importing images into nodes...
+# INFO[0009] Importing images from tarball '/k3d/images/k3d-workshop-images-20230817143454.tar' into node 'k3d-workshop-server-0'...
+# INFO[0011] Removing the tarball(s) from image volume...
+# INFO[0012] Removing k3d-tools node...
+# INFO[0012] Successfully imported image(s)
+# INFO[0012] Successfully imported 1 image(s) into 1 cluster(s)
+# service/api unchanged
+# deployment.apps/api unchanged
+# deployment.apps/api restarted
+# Waiting for deployment "api" rollout to finish: 1 old replicas are pending termination...
+# Waiting for deployment "api" rollout to finish: 1 old replicas are pending termination...
+# deployment "api" successfully rolled out
 ```
 
 Now in separate terminal tabs, start the port forward:
@@ -284,16 +284,16 @@ Create some randomness:
 
 ```shell
 # Create random secret. We'll use the token later to interact with the API
-$ kubectl create secret generic api-secrets \
+kubectl create secret generic api-secrets \
   --from-literal=TOKEN_SECRET=$(cat /dev/urandom | base64 | head -c 64)
-secret/jumpwire-secrets created
+# secret/jumpwire-secrets created
 ```
 
 You can read the secret using this command:
 
 ```shell
-$ kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode
-pVNSnxcBPi4mKBfwvPlMHuNc1xyABEIvNcLC0F9fr2zoSJp9BA5FMbu4dbLpyWpm
+kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode
+# pVNSnxcBPi4mKBfwvPlMHuNc1xyABEIvNcLC0F9fr2zoSJp9BA5FMbu4dbLpyWpm
 ```
 
 To load the secret as an environment variable in our API, update the [api.yaml](kubernetes/api.yaml):
@@ -351,8 +351,6 @@ And now an endpoint to generate a JWT -
 
 ```diff
 // src/api/routes/index.js
-//...
-
 router.get('/', function(req, res, next) {
     res.status(404).json({error: "not found"});
 });
@@ -374,9 +372,9 @@ Test it out!
 ```
 
 ```shell
-$ kubectl port-forward svc/api 3000:80
-$ curl -X POST http://localhost:3000/token -H 'Content-Type: application/json' -d '{"username":"myfaveusername"}'
-{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZWJ1c3N5bWFuIiwiaWF0IjoxNjkyNDYyMzUwLCJleHAiOjE2OTI0NjQxNTB9.79AE9f7DVCSGhfi8BC3SMSbbEbRCCf5H-URljMa7xcg"}
+kubectl port-forward svc/api 3000:80
+curl -X POST http://localhost:3000/token -H 'Content-Type: application/json' -d '{"username":"myfaveusername"}'
+# {"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZWJ1c3N5bWFuIiwiaWF0IjoxNjkyNDYyMzUwLCJleHAiOjE2OTI0NjQxNTB9.79AE9f7DVCSGhfi8BC3SMSbbEbRCCf5H-URljMa7xcg"}
 ```
 
 You can copy the token into [jwt.io](https://jwt.io/) and you should see your username in the payload under the `sub` field.
@@ -461,17 +459,17 @@ Now each of these routes will require a valid JWT header to be present in the re
 Try a request without a token, and you should see a `401 Unauthorized` response:
 
 ```shell
-$ curl -i http://localhost:3000/users
-HTTP/1.1 401 Unauthorized
-X-Powered-By: Express
-Content-Type: text/plain; charset=utf-8
-Content-Length: 12
-ETag: W/"c-dAuDFQrdjS3hezqxDTNgW7AOlYk"
-Date: Mon, 21 Aug 2023 20:35:43 GMT
-Connection: keep-alive
-Keep-Alive: timeout=5
-
-Unauthorized
+curl -i http://localhost:3000/users
+# HTTP/1.1 401 Unauthorized
+# X-Powered-By: Express
+# Content-Type: text/plain; charset=utf-8
+# Content-Length: 12
+# ETag: W/"c-dAuDFQrdjS3hezqxDTNgW7AOlYk"
+# Date: Mon, 21 Aug 2023 20:35:43 GMT
+# Connection: keep-alive
+# Keep-Alive: timeout=5
+#
+# Unauthorized
 ```
 
 Finally, we'll secure the token endpoint using our token secret. We don't want just any John to be able to generate a token. Typically this endpoint would be secured with another authentication scheme, like a password login. For this exercise we'll just reuse the token signing secret.
@@ -539,9 +537,6 @@ First we'll add a list of permissions to the JWT that we generate. Let's update 
 
 ```diff
 // src/api/routes/index.js
-
-//...
-
 router.post('/token', (req, res) => {
 -    const claims = { sub: req.body.username };
 +    let permissions = []
@@ -653,17 +648,17 @@ curl -i -X POST http://localhost:3000/token -H 'Content-Type: application/json' 
 Then use that token to call an endpoint. We should get a `403 Forbidden` response
 
 ```shell
-$ curl -i http://localhost:3000/users -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZWJ1c3N5bWFuIiwiaHR0cHM6Ly9mdGRjLmp1bXB3aXJlLmlvL3Blcm1pc3Npb25zIjpbXSwiaWF0IjoxNjkyNjUwMzE1LCJleHAiOjE2OTI2NTIxMTV9._CsjMJ8JxEnrilOOFh3YEdoJ78Q3WQAVRYD5cjChstI"
-HTTP/1.1 403 Forbidden
-X-Powered-By: Express
-Content-Type: text/plain; charset=utf-8
-Content-Length: 9
-ETag: W/"9-PatfYBLj4Um1qTm5zrukoLhNyPU"
-Date: Mon, 21 Aug 2023 20:56:00 GMT
-Connection: keep-alive
-Keep-Alive: timeout=5
-
-Forbidden
+curl -i http://localhost:3000/users -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZWJ1c3N5bWFuIiwiaHR0cHM6Ly9mdGRjLmp1bXB3aXJlLmlvL3Blcm1pc3Npb25zIjpbXSwiaWF0IjoxNjkyNjUwMzE1LCJleHAiOjE2OTI2NTIxMTV9._CsjMJ8JxEnrilOOFh3YEdoJ78Q3WQAVRYD5cjChstI"
+# HTTP/1.1 403 Forbidden
+# X-Powered-By: Express
+# Content-Type: text/plain; charset=utf-8
+# Content-Length: 9
+# ETag: W/"9-PatfYBLj4Um1qTm5zrukoLhNyPU"
+# Date: Mon, 21 Aug 2023 20:56:00 GMT
+# Connection: keep-alive
+# Keep-Alive: timeout=5
+#
+# Forbidden
 ```
 
 That looks golden! Let's generate a token with permissions:
@@ -675,7 +670,7 @@ curl -X POST http://localhost:3000/token -H 'Content-Type: application/json' -d 
 Which can be used for requests to our API:
 
 ```shell
-$ curl -i localhost:3000/users -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZWJ1c3N5bWFuIiwiaHR0cHM6Ly9mdGRjLmp1bXB3aXJlLmlvL3Blcm1pc3Npb25zIjpbInJlYWQ6dXNlciIsIm1vZGl0eTp1c2VyIl0sImlhdCI6MTY5MjU3NjI2OSwiZXhwIjoxNjkyNTc4MDY5fQ.-hnjCcQh0rFWkALT2kEaVCD2Mm2bk_Lu2eK0P9jjyp4"
+curl -i localhost:3000/users -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZWJ1c3N5bWFuIiwiaHR0cHM6Ly9mdGRjLmp1bXB3aXJlLmlvL3Blcm1pc3Npb25zIjpbInJlYWQ6dXNlciIsIm1vZGl0eTp1c2VyIl0sImlhdCI6MTY5MjU3NjI2OSwiZXhwIjoxNjkyNTc4MDY5fQ.-hnjCcQh0rFWkALT2kEaVCD2Mm2bk_Lu2eK0P9jjyp4"
 ```
 
 The last step is to give our background job a token so that it can call our API! (If you run `kubectl get pods`, you might notice that the reconciler pod is crashing).
@@ -816,15 +811,15 @@ For issueing certificates, we'll be setting up [cert-manager](https://cert-manag
 
 ``` shell
 # setup cert-manager
-$ kubectl apply -f kubernetes/cert-manager.yaml
+kubectl apply -f kubernetes/cert-manager.yaml
 
 # check that the pods are ready
-$ kubectl get pods --namespace cert-manager
+kubectl get pods --namespace cert-manager
 
-NAME                                      READY   STATUS    RESTARTS   AGE
-cert-manager-cainjector-f57bf6b76-d4rqh   1/1     Running   0          2m29s
-cert-manager-6c54667669-g2p7r             1/1     Running   0          2m29s
-cert-manager-webhook-79cbc7f748-f66tp     1/1     Running   0          2m29s
+# NAME                                      READY   STATUS    RESTARTS   AGE
+# cert-manager-cainjector-f57bf6b76-d4rqh   1/1     Running   0          2m29s
+# cert-manager-6c54667669-g2p7r             1/1     Running   0          2m29s
+# cert-manager-webhook-79cbc7f748-f66tp     1/1     Running   0          2m29s
 ```
 
 The first thing you'll need to configure after you've installed cert-manager is an Issuer or a ClusterIssuer. These are resources that represent certificate authorities (CAs) able to sign certificates in response to certificate signing requests.
@@ -832,39 +827,39 @@ The first thing you'll need to configure after you've installed cert-manager is 
 [Install mkcert](https://github.com/FiloSottile/mkcert#installation) if you haven't already. We'll use this to generate a new CA and bootstrap the TLS chain of trust. The CA will be imported into your system trust store and can be removed later with `mkcert -uninstall`.
 
 ``` shell
-$ mkcert -install
-Sudo password:
-The local CA is now installed in the system trust store! ⚡️
+mkcert -install
+# Sudo password:
+# The local CA is now installed in the system trust store! ⚡️
 ```
 
 `mkcert -CAROOT` will print out the location of the CA files. These will remain even if you uninstall the CA from your system store. We then import this CA into Kubernetes for cert-manager to use:
 
 ``` shell
 # inject the CA key and cert as a secret
-$ kubectl -n cert-manager create secret generic ca-key-pair \
+kubectl -n cert-manager create secret generic ca-key-pair \
   --from-file=tls.crt="$(mkcert -CAROOT)/rootCA.pem" \
   --from-file=tls.key="$(mkcert -CAROOT)/rootCA-key.pem"
-secret/ca-key-pair created
+# secret/ca-key-pair created
 
 # also add the CA cert as a ConfigMap for use by any pods
-$ kubectl create configmap ca-cert --from-file=ca.crt="$(mkcert -CAROOT)/rootCA.pem"
-configmap/ca-cert created
+kubectl create configmap ca-cert --from-file=ca.crt="$(mkcert -CAROOT)/rootCA.pem"
+# configmap/ca-cert created
 
 # create a ClusterIssuer to use the secret
-$ kubectl apply -f kubernetes/ca-clusterissuer.yaml
-clusterissuer.cert-manager.io/ca-issuer created
+kubectl apply -f kubernetes/ca-clusterissuer.yaml
+# clusterissuer.cert-manager.io/ca-issuer created
 
 # verify the ClusterIssuer
-$ kubectl get clusterissuer
-NAME        READY   AGE
-ca-issuer   True    60s
+kubectl get clusterissuer
+# NAME        READY   AGE
+# ca-issuer   True    60s
 ```
 
 And now we can issue certificates for our services:
 
 ``` shell
-$ kubectl apply -f kubernetes/api-certificate.yaml
-certificate.cert-manager.io/api created
+kubectl apply -f kubernetes/api-certificate.yaml
+# certificate.cert-manager.io/api created
 ```
 
 This will cause cert-manager to issue certificates and store them in Secrets in Kubernetes. Each service will have its own certificate, issued by the same CA. We'll update our services to mount in those certificates and start using them:
@@ -932,48 +927,48 @@ Deploy the API service with `./build-deploy api`, and start [port forwarding](#c
 
 ``` shell
 curl -v https://localhost:3000/
-*   Trying 127.0.0.1:3000...
-* Connected to localhost (127.0.0.1) port 3000 (#0)
-* ALPN: offers h2
-* ALPN: offers http/1.1
-*  CAfile: /etc/ssl/cert.pem
-*  CApath: none
-* [CONN-0-0][CF-SSL] (304) (OUT), TLS handshake, Client hello (1):
-* [CONN-0-0][CF-SSL] (304) (IN), TLS handshake, Server hello (2):
-* [CONN-0-0][CF-SSL] (304) (IN), TLS handshake, Unknown (8):
-* [CONN-0-0][CF-SSL] (304) (IN), TLS handshake, Certificate (11):
-* [CONN-0-0][CF-SSL] (304) (IN), TLS handshake, CERT verify (15):
-* [CONN-0-0][CF-SSL] (304) (IN), TLS handshake, Finished (20):
-* [CONN-0-0][CF-SSL] (304) (OUT), TLS handshake, Finished (20):
-* SSL connection using TLSv1.3 / AEAD-AES256-GCM-SHA384
-* ALPN: server accepted http/1.1
-* Server certificate:
-*  subject: O=fintech-devon-jumpwire-workshop
-*  start date: Aug 21 16:40:14 2023 GMT
-*  expire date: Aug 28 16:40:14 2023 GMT
-*  subjectAltName: host "localhost" matched cert's "localhost"
-*  issuer: O=mkcert development CA; OU=hexedpackets@notmyrealcomputer.local (William); CN=mkcert hexedpackets@notmyrealcomputer.local (William Huba)
-*  SSL certificate verify ok.
-> GET / HTTP/1.1
-> Host: localhost:3000
-> User-Agent: curl/7.87.0
-> Accept: */*
->
-* Mark bundle as not supporting multiuse
-< HTTP/1.1 404 Not Found
-< X-Powered-By: Express
-< Content-Type: application/json; charset=utf-8
-< Content-Length: 21
-< ETag: W/"15-3jlv4LtvSUoQruAmr3ef7Px06u0"
-< Date: Mon, 21 Aug 2023 16:49:20 GMT
-< Connection: keep-alive
-< Keep-Alive: timeout=5
-<
-* Connection #0 to host localhost left intact
-{"error":"not found"}⏎
+# *   Trying 127.0.0.1:3000...
+# * Connected to localhost (127.0.0.1) port 3000 (#0)
+# * ALPN: offers h2
+# * ALPN: offers http/1.1
+# *  CAfile: /etc/ssl/cert.pem
+# *  CApath: none
+# * [CONN-0-0][CF-SSL] (304) (OUT), TLS handshake, Client hello (1):
+# * [CONN-0-0][CF-SSL] (304) (IN), TLS handshake, Server hello (2):
+# * [CONN-0-0][CF-SSL] (304) (IN), TLS handshake, Unknown (8):
+# * [CONN-0-0][CF-SSL] (304) (IN), TLS handshake, Certificate (11):
+# * [CONN-0-0][CF-SSL] (304) (IN), TLS handshake, CERT verify (15):
+# * [CONN-0-0][CF-SSL] (304) (IN), TLS handshake, Finished (20):
+# * [CONN-0-0][CF-SSL] (304) (OUT), TLS handshake, Finished (20):
+# * SSL connection using TLSv1.3 / AEAD-AES256-GCM-SHA384
+# * ALPN: server accepted http/1.1
+# * Server certificate:
+# *  subject: O=fintech-devon-jumpwire-workshop
+# *  start date: Aug 21 16:40:14 2023 GMT
+# *  expire date: Aug 28 16:40:14 2023 GMT
+# *  subjectAltName: host "localhost" matched cert's "localhost"
+# *  issuer: O=mkcert development CA; OU=hexedpackets@notmyrealcomputer.local (William); CN=mkcert hexedpackets@notmyrealcomputer.local (William Huba)
+# *  SSL certificate verify ok.
+# > GET / HTTP/1.1
+# > Host: localhost:3000
+# > User-Agent: curl/7.87.0
+# > Accept: */*
+# >
+# * Mark bundle as not supporting multiuse
+# < HTTP/1.1 404 Not Found
+# < X-Powered-By: Express
+# < Content-Type: application/json; charset=utf-8
+# < Content-Length: 21
+# < ETag: W/"15-3jlv4LtvSUoQruAmr3ef7Px06u0"
+# < Date: Mon, 21 Aug 2023 16:49:20 GMT
+# < Connection: keep-alive
+# < Keep-Alive: timeout=5
+# <
+# * Connection #0 to host localhost left intact
+# {"error":"not found"}⏎
 ```
 
-It works! And CuRL validated the certificate - this is because we set `localhost` as one of the valid domains in the cert, and the CA bundle is installed locally from mkcert.
+It works! And curl validated the certificate - this is because we set `localhost` as one of the valid domains in the cert, and the CA bundle is installed locally from mkcert.
 
 ![or it's magic](https://media.giphy.com/media/12NUbkX6p4xOO4/giphy.gif)
 
@@ -1083,29 +1078,29 @@ The PostgreSQL Docker image is very particular about permissions and ownership o
 </details>
 
 ``` shell
-$ kubectl apply -f kubernetes/postgres-certificate.yaml
-certificate.cert-manager.io/postgres created
+kubectl apply -f kubernetes/postgres-certificate.yaml
+# certificate.cert-manager.io/postgres created
 
-$ kubectl apply -f kubernetes/postgres.yaml
-service/postgres unchanged
-statefulset.apps/postgres configured
+kubectl apply -f kubernetes/postgres.yaml
+# service/postgres unchanged
+# statefulset.apps/postgres configured
 ```
 
 If you have psql installed, you can try port forwarding to the PostgreSQL server and verifying that SSL works:
 
 ``` shell
 # in one shell
-$ kubectl port-forward svc/postgres 5432:5432
-Forwarding from 127.0.0.1:5432 -> 5432
-Forwarding from [::1]:5432 -> 5432
+kubectl port-forward svc/postgres 5432:5432
+# Forwarding from 127.0.0.1:5432 -> 5432
+# Forwarding from [::1]:5432 -> 5432
 
 # then in another shell
-$ psql "postgresql://postgres:postgres@localhost:5432/bank?sslmode=verify-full&sslrootcert=$(mkcert -CAROOT)/rootCA.pem"
-psql (15.3, server 15.3)
-SSL connection (protocol: TLSv1.3, cipher: TLS_AES_256_GCM_SHA384, bits: 256, compression: off)
-Type "help" for help.
-
-bank=#
+psql "postgresql://postgres:postgres@localhost:5432/bank?sslmode=verify-full&sslrootcert=$(mkcert -CAROOT)/rootCA.pem"
+# psql (15.3, server 15.3)
+# SSL connection (protocol: TLSv1.3, cipher: TLS_AES_256_GCM_SHA384, bits: 256, compression: off)
+# Type "help" for help.
+#
+# bank=#
 ```
 
 Now that PostgreSQL is setup with a TLS certificate, we can configure our application to use ssl mode when connecting by updating the database configuration in [default.js](src/api/config/default.js)
@@ -1161,7 +1156,7 @@ K3s comes with a reverse proxy and HTTP ingress controller called Traefik. It ha
 
 Let's configure the cluster to use the gateway:
 ```shell
-$ kubectl apply -f kubernetes/api-gateway.yaml
+kubectl apply -f kubernetes/api-gateway.yaml
 ```
 
 Now we don't need to port-forward to make requests to our API microservice! You can simply run a curl command to the cluster:
@@ -1237,27 +1232,27 @@ We'll deploy JumpWire to act as a firewall between our API service and database.
 
 ``` shell
 # Create random secrets. We'll use the token later to interact with the API so we'll store it in on disk.
-$ mkdir -p ~/.config/jwctl
-$ cat /dev/urandom | base64 | head -c 64 > ~/.config/jwctl/.token
-$ kubectl create secret generic jumpwire-secrets \
+mkdir -p ~/.config/jwctl
+cat /dev/urandom | base64 | head -c 64 > ~/.config/jwctl/.token
+kubectl create secret generic jumpwire-secrets \
   --from-literal=JUMPWIRE_ENCRYPTION_KEY=$(openssl rand -base64 32) \
   --from-literal=JUMPWIRE_ROOT_TOKEN=$(cat ~/.config/jwctl/.token)
-secret/jumpwire-secrets created
+# secret/jumpwire-secrets created
 ```
 
 Then we can deploy the image to our Kubernetes cluster. This is already configured to generate a TLS certificate from cert-manager and inject it into the pod, just like we did with our other services.
 
 ``` shell
-$ kubectl apply -f kubernetes/jumpwire.yaml
-certificate.cert-manager.io/jumpwire created
-service/jumpwire created
-configmap/jumpwire-config created
-deployment.apps/jumpwire created
+kubectl apply -f kubernetes/jumpwire.yaml
+# certificate.cert-manager.io/jumpwire created
+# service/jumpwire created
+# configmap/jumpwire-config created
+# deployment.apps/jumpwire created
 
 # wait for the deployment to be ready
-$ kubectl rollout status -w deployment/jumpwire
-Waiting for deployment "jumpwire" rollout to finish: 0 of 1 updated replicas are available...
-deployment "jumpwire" successfully rolled out
+kubectl rollout status -w deployment/jumpwire
+# Waiting for deployment "jumpwire" rollout to finish: 0 of 1 updated replicas are available...
+# deployment "jumpwire" successfully rolled out
 ```
 
 Take a look at the [configuration](kubernetes/jumpwire.yaml) for JumpWire. It specifies a couple of interesting things to do with our data. We assign labels to some fields in the `users` tables:
@@ -1274,24 +1269,24 @@ We have a client defined as well, with an id of `ccf334b5-2d5a-45ee-a6dd-c34caf9
 
 ``` shell
 # start port forwarding for the JumpWire API
-$ kubectl port-forward svc/jumpwire 4443:443
-Forwarding from 127.0.0.1:4443 -> 4443
-Forwarding from [::1]:4443 -> 4443
+kubectl port-forward svc/jumpwire 4443:443
+# Forwarding from 127.0.0.1:4443 -> 4443
+# Forwarding from [::1]:4443 -> 4443
 
 # Use the jwctl to generate credentials. This will use the token we previously
 # saved to ~/.config/jwctl/.token
-$ jwctl -u https://localhost:4443 client token ccf334b5-2d5a-45ee-a6dd-c34caf99e4d4
-[INFO] Token generated:
-
-username: 0779b97a-c04a-48f9-9483-22e8b0487de4
-password: SFMyNTY.g2gDaAJtAAAAC29yZ19nZW5lcmljbQAAACRjY2YzMzRiNS0yZDVhLTQ1ZWUtYTZkZC1jMzRjYWY5OWU0ZDRuBgBM10gLigFiEswDAA.Zk31CwFi-ClR2ggAY6KJ7rMNvp5aHK7PXndrE8mCaU8
+jwctl -u https://localhost:4443 client token ccf334b5-2d5a-45ee-a6dd-c34caf99e4d4
+# [INFO] Token generated:
+#
+# username: 0779b97a-c04a-48f9-9483-22e8b0487de4
+# password: SFMyNTY.g2gDaAJtAAAAC29yZ19nZW5lcmljbQAAACRjY2YzMzRiNS0yZDVhLTQ1ZWUtYTZkZC1jMzRjYWY5OWU0ZDRuBgBM10gLigFiEswDAA.Zk31CwFi-ClR2ggAY6KJ7rMNvp5aHK7PXndrE8mCaU8
 
 # Save the login info to a new Kubernetes secret - make sure to use the password from your
 # deployment, copying the one below will not work!
-$ kubectl create secret generic api-postgres-login \
+kubectl create secret generic api-postgres-login \
   --from-literal=APP_DB_USERNAME=0779b97a-c04a-48f9-9483-22e8b0487de4 \
   --from-literal=APP_DB_PASSWORD=SFMyNTY.g2gDaAJtAAAAC29yZ19nZW5lcmljbQAAACRjY2YzMzRiNS0yZDVhLTQ1ZWUtYTZkZC1jMzRjYWY5OWU0ZDRuBgBM10gLigFiEswDAA.Zk31CwFi-ClR2ggAY6KJ7rMNvp5aHK7PXndrE8mCaU8
-secret/api-postgres-login created
+# secret/api-postgres-login created
 ```
 
 Now that the credentials are in a Secret, we'll update our API deployment to use them and connect through JumpWire to the database.
@@ -1319,36 +1314,36 @@ Run `./build-deploy api` to deploy the update. Now when you query the API servic
 
 ``` shell
 # generate a token for the API service
-$ set API_TOKEN=$(curl -X POST https://localhost:3000/token -H 'Content-Type: application/json' -d '{"username":"debussyman","permissions":"[\"read:user\",\"modify:user\"]"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)" | jq -r '.token')
+set API_TOKEN=$(curl -X POST https://localhost:3000/token -H 'Content-Type: application/json' -d '{"username":"debussyman","permissions":"[\"read:user\",\"modify:user\"]"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)" | jq -r '.token')
 
 # curl the API
-$ curl -H "Authorization: Bearer $API_TOKEN" https://localhost:3000/users | jq '.[:2]'
-[
-  {
-    "id": 0,
-    "credit_card": "jumpwire_AQNwY2kBK0FFUy5HQ00uVjEuNzM0QzEzRTIwN0Y0NkU5NzE2N0U2ODFEQUM1MzA0QTHcmliKjSZ0EYz0MNgt9aGaVcNrsUDdBzRa/fs7SBQYEdDa2CIXEBSqg+k6",
-    "currency": "USD",
-    "email": "selena_autem@hotmail.com",
-    "is_active": true,
-    "country": "NO",
-    "num_logins": 71,
-    "password_hash": null,
-    "username": "arnulfo_consectetur",
-    "created_at": "2002-11-23T22:22:10.441Z"
-  },
-  {
-    "id": 1,
-    "credit_card": "jumpwire_AQNwY2kBK0FFUy5HQ00uVjEuNzM0QzEzRTIwN0Y0NkU5NzE2N0U2ODFEQUM1MzA0QTEHosM0BkbnHKssxskm+ssCRzNesWAplC7chfSF6GnU8FLI1Jc+AulmR9w7",
-    "currency": "USD",
-    "email": "earnestine_ipsam@hotmail.com",
-    "is_active": true,
-    "country": "AR",
-    "num_logins": 33,
-    "password_hash": null,
-    "username": "carson_et",
-    "created_at": "2010-06-02T22:10:45.724Z"
-  }
-]
+curl -H "Authorization: Bearer $API_TOKEN" https://localhost:3000/users | jq '.[:2]'
+# [
+#   {
+#     "id": 0,
+#     "credit_card": "jumpwire_AQNwY2kBK0FFUy5HQ00uVjEuNzM0QzEzRTIwN0Y0NkU5NzE2N0U2ODFEQUM1MzA0QTHcmliKjSZ0EYz0MNgt9aGaVcNrsUDdBzRa/fs7SBQYEdDa2CIXEBSqg+k6",
+#     "currency": "USD",
+#     "email": "selena_autem@hotmail.com",
+#     "is_active": true,
+#     "country": "NO",
+#     "num_logins": 71,
+#     "password_hash": null,
+#     "username": "arnulfo_consectetur",
+#     "created_at": "2002-11-23T22:22:10.441Z"
+#   },
+#   {
+#     "id": 1,
+#     "credit_card": "jumpwire_AQNwY2kBK0FFUy5HQ00uVjEuNzM0QzEzRTIwN0Y0NkU5NzE2N0U2ODFEQUM1MzA0QTEHosM0BkbnHKssxskm+ssCRzNesWAplC7chfSF6GnU8FLI1Jc+AulmR9w7",
+#     "currency": "USD",
+#     "email": "earnestine_ipsam@hotmail.com",
+#     "is_active": true,
+#     "country": "AR",
+#     "num_logins": 33,
+#     "password_hash": null,
+#     "username": "carson_et",
+#     "created_at": "2010-06-02T22:10:45.724Z"
+#   }
+# ]
 ```
 
 <details>
@@ -1372,17 +1367,17 @@ Let's harden our web server by changing the default configuration and adding add
 
 For example, our API server adds a response header `X-Powered-By: Express`
 ```shell
-$ curl -vv http://localhost:3000
-*   Trying 127.0.0.1:3000...
-* Connected to localhost (127.0.0.1) port 3000 (#0)
-> GET / HTTP/1.1
-> Host: localhost:3000
-> User-Agent: curl/7.81.0
-> Accept: */*
->
-* Mark bundle as not supporting multiuse
-< HTTP/1.1 200 OK
-< X-Powered-By: Express
+curl -vv http://localhost:3000
+# *   Trying 127.0.0.1:3000...
+# * Connected to localhost (127.0.0.1) port 3000 (#0)
+# > GET / HTTP/1.1
+# > Host: localhost:3000
+# > User-Agent: curl/7.81.0
+# > Accept: */*
+# >
+# * Mark bundle as not supporting multiuse
+# < HTTP/1.1 200 OK
+# < X-Powered-By: Express
 ```
 
 This can be easily disabled, add the following configuration to [src/api/app.js](src/api/app.js):
@@ -1473,21 +1468,21 @@ In our setup, fluentd will run on every Kubernetes node and tail the logs of eve
 
 ``` shell
 # everything will be created under a new namespace, `logging`
-$ kubectl apply -f kubernetes/efk-manifests.yaml
-namespace/logging created
-service/elasticsearch created
-statefulset.apps/elasticsearch created
-service/kibana created
-configmap/kibana created
-deployment.apps/kibana created
-serviceaccount/fluentd created
-clusterrole.rbac.authorization.k8s.io/fluentd created
-clusterrolebinding.rbac.authorization.k8s.io/fluentd created
-daemonset.apps/fluentd created
+kubectl apply -f kubernetes/efk-manifests.yaml
+# namespace/logging created
+# service/elasticsearch created
+# statefulset.apps/elasticsearch created
+# service/kibana created
+# configmap/kibana created
+# deployment.apps/kibana created
+# serviceaccount/fluentd created
+# clusterrole.rbac.authorization.k8s.io/fluentd created
+# clusterrolebinding.rbac.authorization.k8s.io/fluentd created
+# daemonset.apps/fluentd created
 
-$ kubectl -n logging port-forward service/kibana 5601:5601
-Forwarding from 127.0.0.1:5601 -> 5601
-Forwarding from [::1]:5601 -> 5601
+kubectl -n logging port-forward service/kibana 5601:5601
+# Forwarding from 127.0.0.1:5601 -> 5601
+# Forwarding from [::1]:5601 -> 5601
 ```
 
 Kibana is now accessible at [http://localhost:5601](http://localhost:5601). When you connect in your browser, Kibana will prompt you to "Create data view".
