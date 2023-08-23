@@ -30,7 +30,6 @@ Install Docker, k3d and kubectl
 - Deploy the workshop services
 - (optional) Some extra tools than can be helpful, but aren't required
   - [jq](https://jqlang.github.io/jq/) - great for formatting JSON output
-  - [httpie](https://httpie.io/) - a more pleasant experience for working with JSON APIs. All examples in the README use curl, however.
   - [nodejs](https://nodejs.org/en) and [yarn](https://classic.yarnpkg.com/lang/en/docs/install/) - not required, but if you want to run the API server locally instead of only in Kubernetes you'll need thse
   - [rust](https://www.rust-lang.org/tools/install) - same as nodejs, but for the reconciler service
 
