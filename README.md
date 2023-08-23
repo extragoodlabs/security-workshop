@@ -1,4 +1,4 @@
-| ![](data/images/fintech_devcon-logo.svg) | ![](data/images/JumpWireLogo_PurpleBlue.svg) |
+| ![](images/fintech_devcon-logo.svg) | ![](images/JumpWireLogo_PurpleBlue.svg) |
 |:--:|:--:|
 |**#fintechdevcon2023**|**Secure software demystified**|
 
@@ -9,7 +9,7 @@ This is the code repository for a workshop given at [fintech_devcon 2023](https:
 During the workshop, a microservice application will be refactored to improve security, organized around the [OWASP Top10](https://owasp.org/Top10/) categories for web application security risks. We will improve authentication and authorization, encryption in transit, encryption at rest, and monitor for security-related events.
 
 
-| ![](data/images/owasp-top10-mapping.png) |
+| ![](images/owasp-top10-mapping.png) |
 |:--:|
 |*OWASP Top 10*|
 
@@ -111,11 +111,11 @@ kubectl get pods
 
 The microservice application in this workshop starts with a multi-tier architecture that is common to many web applications. It includes an API, background jobs and a database.
 
-![Starting application architecture](./data/images/fintech_devcon-workshop-arch-start.svg)
+![Starting application architecture](./images/fintech_devcon-workshop-arch-start.svg)
 
 After making various software and infrastructure changes, the architecture will evolve to include an API gateway, a database gateway, and an observability stack.
 
-![Ending application architecture](./data/images/fintech_devcon-workshop-arch-end.svg)
+![Ending application architecture](./images/fintech_devcon-workshop-arch-end.svg)
 
 ## Connecting to the API
 
@@ -317,7 +317,7 @@ kubectl port-forward -n kube-system traefik-56cfc7b59f-4xpqd 9000:9000
 ```
 
 Now open [http://localhost:9000/dashboard/#/](http://localhost:9000/dashboard/#/) in your browser, and you should see the middleware installed successfully:
-![](data/images/traefik-dashboard.png)
+![](images/traefik-dashboard.png)
 
 <details>
 <summary>Go deeper</summary>
