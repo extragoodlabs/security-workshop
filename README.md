@@ -245,11 +245,10 @@ kubectl apply -f kubernetes/api-gateway.yaml
 You can port forward the `traefik` container to view the dashboard:
 
 ```shell
-kubectl get pods -n kube-system
+kubectl get pods -n kube-system -l app.kubernetes.io/name=traefik
 # NAME                                      READY   STATUS      RESTARTS       AGE
 # traefik-56cfc7b59f-4xpqd                  1/1     Running     0              21s
-# ... other pods
-kubectl port-forward -n kube-system traefik-56cfc7b59f-4xpqd 9000:9000
+kubectl port-forward -n kube-system deployment/traefik 9000:9000
 ```
 
 Now open [http://localhost:9000/dashboard/#/](http://localhost:9000/dashboard/#/) in your browser, and you should see the middleware installed successfully:
@@ -801,7 +800,7 @@ Encryption was invented thousands of years ago to protect information from falli
 
 >Shifting up one position to #2, previously known as Sensitive Data Exposure, which is more of a broad symptom rather than a root cause, the focus is on failures related to cryptography (or lack thereof). Which often lead to exposure of sensitive data.
 
-#### Introducing HTTP connection encryption
+#### Introducing TLS connection encryption
 
 For issuing certificates, we'll be setting up [cert-manager](https://cert-manager.io/). This sits in our cluster and issues certificates based on metadata for running services. In a production environment, you would have cert-manager use something like HashiCorp Vault or LetsEncrypt to get valid short-lived certificates, but for this workshop we'll configure it to act as its own certificate authority.
 
@@ -884,6 +883,7 @@ spec:
 ```
 
 And apply:
+
 ```shell
 kubectl apply -f kubernetes/api-gateway.yaml
 ```
@@ -1041,16 +1041,25 @@ spec:
     - websecure
   routes:
   - kind: Rule
-    match: PathPrefix(`/api/v1`)
+    match: PathPrefix(`/api`)
     services:
     - name: api
-      port: 443
+-      port: 80
++      port: 443
 +      serversTransport: tls-transport
     middlewares:
     - name: http-ratelimit
     - name: strip-api-prefix
   tls:
     secretName: ingress-tls
+```
+
+Deploy the update and run another curl to make sure it still works:
+
+``` shell
+kubectl apply -f kubernetes/api-gateway.yaml
+curl https://localhost:9443/api/
+# {"error":"not found"}
 ```
 
 You may have noticed pods from reconciler are also failing. It is still trying to use HTTP - we need to update it to use HTTPS for its API calls, including validation against the CA.
@@ -1204,7 +1213,8 @@ Now that PostgreSQL is setup with a TLS certificate, we can configure our applic
 +                ca: fs.readFileSync(`${process.env.TLS_CERT_DIR}/ca.crt`).toString()
 +            }
 +        }
-     }
+     },
+     token_secret: ""
  }
 ```
 
@@ -1293,7 +1303,7 @@ Now that the credentials are in a Secret, we'll update our API deployment to use
 -          value: postgres
 -        - name: APP_DB_PASSWORD
 -          value: postgres
-+        envFrom:
+         envFrom:
          - secretRef:
              name: api-secrets
 +        - secretRef:
@@ -1304,7 +1314,7 @@ Run `./build-deploy api` to deploy the update. Now when you query the API servic
 
 ``` shell
 # generate a token for the API service
-set API_TOKEN=$(curl -X POST https://localhost:9443/api/token -H 'Content-Type: application/json' -d '{"username":"debussyman","permissions":"[\"read:user\",\"modify:user\"]"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)" | jq -r '.token')
+API_TOKEN=$(curl -X POST https://localhost:9443/api/token -H 'Content-Type: application/json' -d '{"username":"debussyman","permissions":"[\"read:user\",\"modify:user\"]"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)" | jq -r '.token')
 
 # curl the API
 curl -H "Authorization: Bearer $API_TOKEN" https://localhost:9443/api/users | jq '.[:2]'
