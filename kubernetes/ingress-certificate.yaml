@@ -1,9 +1,9 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: postgres
+  name: ingress
 spec:
-  secretName: postgres-tls
+  secretName: ingress-tls
   duration: 168h # 7d
   renewBefore: 72h # 3d
   subject:
@@ -14,15 +14,10 @@ spec:
     size: 256
   usages:
     - server auth
-    - client auth
   dnsNames:
     # adding localhost to allow TLS validation when port-forwarding
     # for local dev
     - localhost
-    - postgres
-    - postgres.default.svc.cluster.local
-    - postgres.svc.cluster.local
-    - postgres.cluster.local
   issuerRef:
     name: ca-issuer
     kind: ClusterIssuer

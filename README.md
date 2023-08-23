@@ -872,7 +872,7 @@ curl -v https://localhost:3000/
 # * SSL connection using TLSv1.3 / AEAD-AES256-GCM-SHA384
 # * ALPN: server accepted http/1.1
 # * Server certificate:
-# *  subject: O=fintech-devon-jumpwire-workshop
+# *  subject: O=fintech-devcon-jumpwire-workshop
 # *  start date: Aug 21 16:40:14 2023 GMT
 # *  expire date: Aug 28 16:40:14 2023 GMT
 # *  subjectAltName: host "localhost" matched cert's "localhost"

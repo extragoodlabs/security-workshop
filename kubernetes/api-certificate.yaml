@@ -8,7 +8,7 @@ spec:
   renewBefore: 72h # 3d
   subject:
     organizations:
-      - fintech-devon-jumpwire-workshop
+      - fintech-devcon-jumpwire-workshop
   privateKey:
     algorithm: ECDSA
     size: 256
