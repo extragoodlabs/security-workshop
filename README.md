@@ -897,8 +897,6 @@ kubectl apply -f kubernetes/ingress-certificate.yaml
 Add it to our gateway in [api-gateway.yaml](kubernetes/api-gateway.yaml):
 ```diff
 # kubernetes/api-gateway.yaml
-# ...
----
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
@@ -922,16 +920,74 @@ spec:
 ```
 
 And apply:
+
 ```shell
 kubectl apply -f kubernetes/api-gateway.yaml
 ```
+
+Now try an HTTPS request:
+
+
+``` shell
+curl -v https://localhost:9443/api/
+# *   Trying 127.0.0.1:9443...
+# * Connected to localhost (127.0.0.1) port 9443 (#0)
+# * ALPN: offers h2
+# * ALPN: offers http/1.1
+# *  CAfile: /etc/ssl/cert.pem
+# *  CApath: none
+# * [CONN-0-0][CF-SSL] (304) (OUT), TLS handshake, Client hello (1):
+# * [CONN-0-0][CF-SSL] (304) (IN), TLS handshake, Server hello (2):
+# * [CONN-0-0][CF-SSL] (304) (IN), TLS handshake, Unknown (8):
+# * [CONN-0-0][CF-SSL] (304) (IN), TLS handshake, Certificate (11):
+# * [CONN-0-0][CF-SSL] (304) (IN), TLS handshake, CERT verify (15):
+# * [CONN-0-0][CF-SSL] (304) (IN), TLS handshake, Finished (20):
+# * [CONN-0-0][CF-SSL] (304) (OUT), TLS handshake, Finished (20):
+# * SSL connection using TLSv1.3 / AEAD-CHACHA20-POLY1305-SHA256
+# * ALPN: server accepted h2
+# * Server certificate:
+# *  subject: O=fintech-devcon-jumpwire-workshop
+# *  start date: Aug 23 14:58:06 2023 GMT
+# *  expire date: Aug 30 14:58:06 2023 GMT
+# *  subjectAltName: host "localhost" matched cert's "localhost"
+# *  issuer: O=mkcert development CA; OU=hexedpackets@notmyrealcomputer.local (Not William); CN=mkcert hexedpackets@notmyrealcomputer.local (Not William)
+# *  SSL certificate verify ok.
+# * Using HTTP2, server supports multiplexing
+# * Copying HTTP/2 data in stream buffer to connection buffer after upgrade: len=0
+# * h2h3 [:method: GET]
+# * h2h3 [:path: /api/]
+# * h2h3 [:scheme: https]
+# * h2h3 [:authority: localhost:9443]
+# * h2h3 [user-agent: curl/7.87.0]
+# * h2h3 [accept: */*]
+# * Using Stream ID: 1 (easy handle 0x15280a800)
+# > GET /api/ HTTP/2
+# > Host: localhost:9443
+# > user-agent: curl/7.87.0
+# > accept: */*
+# >
+# * Connection state changed (MAX_CONCURRENT_STREAMS == 250)!
+# < HTTP/2 404
+# < content-type: application/json; charset=utf-8
+# < date: Wed, 23 Aug 2023 15:00:04 GMT
+# < etag: W/"13-ba++C/ABIZmZkDpO1b0jr1uB5S0"
+# < x-powered-by: Express
+# < content-length: 19
+# <
+# * Connection #0 to host localhost left intact
+# {"error":"unknown"}
+```
+
+It works! And curl validated the certificate - this is because we set `localhost` as one of the valid domains in the cert, and the CA bundle is installed locally from mkcert.
+
+![or it's magic](https://media.giphy.com/media/12NUbkX6p4xOO4/giphy.gif)
 
 ``` shell
 kubectl apply -f kubernetes/api-certificate.yaml
 # certificate.cert-manager.io/api created
 ```
 
-This will cause cert-manager to issue certificates and store them in Secrets in Kubernetes. Each service will have its own certificate, issued by the same CA. We'll update our services to mount in those certificates and start using them:
+This will cause cert-manager to issue certificates and store them in Secrets in Kubernetes. Each service should have its own certificate, issued by the same CA. We'll update our services to mount in those certificates and start using them:
 
 ```diff
 // kubernetes/api.yaml
@@ -992,56 +1048,6 @@ This will cause cert-manager to issue certificates and store them in Secrets in 
 ```
 
 Deploy the API service with `./build-deploy api`.
-
-Now try an HTTPS request:
-
-
-``` shell
-curl -v https://localhost:9443/api/
-# *   Trying 127.0.0.1:9443...
-# * Connected to localhost (127.0.0.1) port 9443 (#0)
-# * ALPN: offers h2
-# * ALPN: offers http/1.1
-# *  CAfile: /etc/ssl/cert.pem
-# *  CApath: none
-# * [CONN-0-0][CF-SSL] (304) (OUT), TLS handshake, Client hello (1):
-# * [CONN-0-0][CF-SSL] (304) (IN), TLS handshake, Server hello (2):
-# * [CONN-0-0][CF-SSL] (304) (IN), TLS handshake, Unknown (8):
-# * [CONN-0-0][CF-SSL] (304) (IN), TLS handshake, Certificate (11):
-# * [CONN-0-0][CF-SSL] (304) (IN), TLS handshake, CERT verify (15):
-# * [CONN-0-0][CF-SSL] (304) (IN), TLS handshake, Finished (20):
-# * [CONN-0-0][CF-SSL] (304) (OUT), TLS handshake, Finished (20):
-# * SSL connection using TLSv1.3 / AEAD-AES256-GCM-SHA384
-# * ALPN: server accepted http/2
-# * Server certificate:
-# *  subject: O=fintech-devcon-jumpwire-workshop
-# *  start date: Aug 21 16:40:14 2023 GMT
-# *  expire date: Aug 28 16:40:14 2023 GMT
-# *  subjectAltName: host "localhost" matched cert's "localhost"
-# *  issuer: O=mkcert development CA; OU=hexedpackets@notmyrealcomputer.local (William); CN=mkcert hexedpackets@notmyrealcomputer.local (William Huba)
-# *  SSL certificate verify ok.
-# > GET / HTTP/1.1
-# > Host: localhost:3000
-# > User-Agent: curl/7.87.0
-# > Accept: */*
-# >
-# * Mark bundle as not supporting multiuse
-# < HTTP/2 404 Not Found
-# < X-Powered-By: Express
-# < Content-Type: application/json; charset=utf-8
-# < Content-Length: 21
-# < ETag: W/"15-3jlv4LtvSUoQruAmr3ef7Px06u0"
-# < Date: Mon, 21 Aug 2023 16:49:20 GMT
-# < Connection: keep-alive
-# < Keep-Alive: timeout=5
-# <
-# * Connection #0 to host localhost left intact
-# {"error":"not found"}⏎
-```
-
-It works! And curl validated the certificate - this is because we set `localhost` as one of the valid domains in the cert, and the CA bundle is installed locally from mkcert.
-
-![or it's magic](https://media.giphy.com/media/12NUbkX6p4xOO4/giphy.gif)
 
 You may have noticed pods from reconciler are now failing. It is still trying to use HTTP - we need to update it to use HTTPS for its API calls, including validation against the CA.
 
