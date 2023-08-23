@@ -223,19 +223,19 @@ This workshop has the following exercises
 
 ### A04:2021 Insecure Design
 
-Installing security as layers of architecture allows us to centralize different concerns into a single application, as well as standardize how controls are applied across all backend microservices. As your application's complexity increases, security moves from a concern around individual apps to a concern about the overall architecture.
+Installing security as layers of architecture allows us to centralize different concerns into a single place, as well as standardize how controls are applied across all backend microservices. As your application's complexity increases, security moves from a concern around individual apps to a concern about the overall architecture.
 
 >A new category for 2021 focuses on risks related to design and architectural flaws, with a call for more use of threat modeling, secure design patterns, and reference architectures. As a community we need to move beyond "shift-left" in the coding space to pre-code activities that are critical for the principles of Secure by Design.
 
-When your microservices start to proliferate, it becomes harder to ensure that every backend is implementing security controls correctly. Let's lift these controls into their own layers in our architecture as step one.
+When your microservices start to proliferate, it becomes harder to ensure that every backend is implementing security controls correctly. Let's lift these controls into their own layer in our architecture as step one.
 
 #### Introducing API Gateway
 
-An API gateway is an application that sits in front of the API and acts as a single entry point that routes client API requests to your backend microservices. It is useful for adding additional security controls without needing to modify the backend microservices themselves.
+An API gateway is an application that sits in front of the API and acts as a single entry point for requests from outside the cluster and routes them to the appropriate backend microservices. It is useful for adding security controls without needing to modify the backend microservices themselves.
 
-We'll use an API gateway to handle ingress (incoming) HTTP requests to our cluster. Then use it to add request rate limiting, which can protect against credential-stuffing, denial-or-service, and other brute-force attacks.
+We'll use an API gateway to handle ingress (incoming) HTTP requests to our cluster, then add request rate limiting, which can protect against credential-stuffing, denial-or-service, and other brute-force attacks.
 
-K3s comes with a reverse proxy and HTTP ingress controller called Traefik. It has a library of middleware plugins for extending the capabilities of the proxy to add gateway functionality. This will also let us reach our backend from outside the cluster, so we don't need to port-forward directly to the API pod.
+K3s comes with a reverse proxy and HTTP ingress controller called Traefik. It has a library of middleware and plugins for extending the capabilities of the proxy to add gateway functionality.
 
 Let's configure the cluster to use the gateway:
 ```shell
@@ -245,14 +245,14 @@ kubectl apply -f kubernetes/api-gateway.yaml
 Now we don't need to port-forward to make requests to our API microservice! You can simply run a curl command to the cluster:
 ```shell
 curl -i http://localhost:9080/api/users
-# HTTP/2 200
-# content-type: application/json; charset=utf-8
-# date: Wed, 23 Aug 2023 03:07:35 GMT
-# etag: W/"4e4c-iChHJ1SEQjA0Es1Jbd0WBH9mWLU"
-# x-powered-by: Express
-# content-length: 20044
-#
-# [{"id":0,"credit_card":...
+# HTTP/1.1 200 OK
+# Content-Length: 20044
+# Content-Type: application/json; charset=utf-8
+# Date: Wed, 23 Aug 2023 15:32:50 GMT
+# Etag: W/"4e4c-iChHJ1SEQjA0Es1Jbd0WBH9mWLU"
+# X-Powered-By: Express
+
+# [{"id":0,"credit_card":"342044649251781","currency":"USD","email":"selena_autem@hotmail.com","is_active":true,"country":"NO","num_logins":71,"password_hash":"199ca118cd1528f44faac4a013a92355","username":"arnulfo_consectetur","created_at":"2002-11-23T22:22:10.441Z"}, ...
 ```
 
 Let's install the [RateLimit](https://doc.traefik.io/traefik/middlewares/http/ratelimit/) middleware, by updating our [kubernetes/api-gateway.yaml](kubernetes/api-gateway.yaml):
