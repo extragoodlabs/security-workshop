@@ -1,16 +1,5 @@
 ---
 apiVersion: traefik.containo.us/v1alpha1
-kind: ServersTransport
-metadata:
-  name: tls-transport
-  namespace: default
-
-spec:
-  serverName: api
-  rootCAsSecrets:
-    - ca-cert
----
-apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
   name: strip-api-prefix
@@ -19,7 +8,7 @@ metadata:
 spec:
   stripPrefix:
     prefixes:
-      - /api/v1
+      - /api
 ---
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
@@ -28,15 +17,12 @@ metadata:
   namespace: default
 spec:
   entryPoints:
-    - websecure
+    - web
   routes:
   - kind: Rule
-    match: PathPrefix(`/api/v1`)
+    match: PathPrefix(`/api`)
     services:
     - name: api
       port: 443
-      serversTransport: tls-transport
     middlewares:
     - name: strip-api-prefix
-  tls:
-    secretName: ingress-tls

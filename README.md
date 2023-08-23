@@ -215,11 +215,122 @@ Keep-Alive: timeout=5
 ## 📝 Exercises
 This workshop has the following exercises
 
+1. [A04:2021 Insecure Design](#a012021-insecure-design)
 1. [A01:2021 Broken Access Control](#a012021-broken-access-control)
 1. [A02:2021 Cryptographic Failures](#a022021-cryptographic-failures)
-1. [A04:2021 Insecure Design](#a012021-insecure-design)
 1. [A05:2021 Security Misconfiguration](#a012021-security-misconfiguration)
 1. [A09:2021 Security Logging and Monitoring Failures](#a012021-security-logging-and-monitoring-failures)
+
+### A04:2021 Insecure Design
+
+Installing security as layers of architecture allows us to centralize different concerns into a single application, as well as standardize how controls are applied across all backend microservices. As your application's complexity increases, security moves from a concern around individual apps to a concern about the overall architecture.
+
+>A new category for 2021 focuses on risks related to design and architectural flaws, with a call for more use of threat modeling, secure design patterns, and reference architectures. As a community we need to move beyond "shift-left" in the coding space to pre-code activities that are critical for the principles of Secure by Design.
+
+When your microservices start to proliferate, it becomes harder to ensure that every backend is implementing security controls correctly. Let's lift these controls into their own layers in our architecture as step one.
+
+#### Introducing API Gateway
+
+An API gateway is an application that sits in front of the API and acts as a single entry point that routes client API requests to your backend microservices. It is useful for adding additional security controls without needing to modify the backend microservices themselves.
+
+We'll use an API gateway to handle ingress (incoming) HTTP requests to our cluster. Then use it to add request rate limiting, which can protect against credential-stuffing, denial-or-service, and other brute-force attacks.
+
+K3s comes with a reverse proxy and HTTP ingress controller called Traefik. It has a library of middleware plugins for extending the capabilities of the proxy to add gateway functionality. This will also let us reach our backend from outside the cluster, so we don't need to port-forward directly to the API pod.
+
+Let's configure the cluster to use the gateway:
+```shell
+kubectl apply -f kubernetes/api-gateway.yaml
+```
+
+Now we don't need to port-forward to make requests to our API microservice! You can simply run a curl command to the cluster:
+```shell
+curl -i https://localhost:9443/api/v1/users
+#HTTP/2 200
+#content-type: application/json; charset=utf-8
+#date: Wed, 23 Aug 2023 03:07:35 GMT
+#etag: W/"4e4c-iChHJ1SEQjA0Es1Jbd0WBH9mWLU"
+#x-powered-by: Express
+#content-length: 20044
+
+#[{"id":0,"credit_card":...
+```
+
+Now let's install the [RateLimit](https://doc.traefik.io/traefik/middlewares/http/ratelimit/) middleware, by updating our [kubernetes/api-gateway.yaml](kubernetes/api-gateway.yaml):
+
+```diff
+// kubernetes/api-gateway.yaml
++---
++apiVersion: traefik.containo.us/v1alpha1
++kind: Middleware
++metadata:
++  name: http-ratelimit
++  namespace: default
++spec:
++  rateLimit:
++    average: 100
++    burst: 50
+---
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-api-prefix
+  namespace: default
+
+spec:
+  stripPrefix:
+    prefixes:
+      - /api
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: api-ingress
+  namespace: default
+spec:
+  entryPoints:
+    - web
+  routes:
+  - kind: Rule
+    match: PathPrefix(`/api`)
+    services:
+    - name: api
+      port: 443
+    middlewares:
++    - name: http-ratelimit
+    - name: strip-api-prefix
+
+```
+
+Let's update configure the cluster to add ratelimiting:
+```shell
+kubectl apply -f kubernetes/api-gateway.yaml
+```
+
+You can port forward the `traefik` container to view the dashboard:
+
+```shell
+kubectl get pods -n kube-system
+# NAME                                      READY   STATUS      RESTARTS       AGE
+# traefik-56cfc7b59f-4xpqd                  1/1     Running     0              21s
+# ... other pods
+kubectl port-forward -n kube-system traefik-56cfc7b59f-4xpqd 9000:9000
+```
+
+Now open [http://localhost:9000/dashboard/#/](http://localhost:9000/dashboard/#/) in your browser, and you should see the middleware installed successfully:
+![](data/images/traefik-dashboard.png)
+
+<details>
+<summary>Go deeper</summary>
+Architecture design can impact the overall security of an application. By adding components that have a specific purpose, we can ensure that security is applied consistently across many microservices while also reducing the complexity of individual applications.
+
+As we introduce additional API routes, or background jobs, or even new web applications, the gateways can operate agnostic to the technology being used by microservices.
+
+[CWE-501](https://cwe.mitre.org/data/definitions/501.html) lays out the principle of "trust boundaries", which are logical divisions in an application which data moves across. Adding layers that are dedicated to controlling those boundaries give you more control over security.
+
+There is also a strategy called "defense in depth". This describes an approach of not relying on a single control to provide security for a large portion of an application. Instead there should be multiple controls enforcing security, so that when one is compromised, an attacker does not gain "keys to the kingdom". By adding gateways to manage connections between different parts of our architecture, we decrease the likelihood that a failure can allow for all data to be stolen.
+</details>
+
 
 ### A01:2021 Broken Access Control
 
@@ -1058,105 +1169,6 @@ Now that PostgreSQL is setup with a TLS certificate, we can configure our applic
 
 Build and apply the changes - `./build-deploy api`. Once that's done, the API server will be connecting to PostgreSQL over TLS, and verifying the certificate with our CA.
 
-<details>
-<summary>Go deeper</summary>
-It used to be standard to "terminate TLS encryption", or decrypt, HTTP requests at a point when they entered the backend. For example, it was common for a load balancer to decrypt an HTTP request before sending it to one of the backend clusters. Or when making inter-service requests between microservices, they would only be configured to use unencrypted HTTP.
-
-Now that attackers are becoming adept at getting access to internal systems, unencrypted requests can be exploited to steal data. This isn't used just for malicious purposes, the NSA famously exploited this to spy on many companies, including [mighty Google](https://en.wikipedia.org/wiki/Tailored_Access_Operations#QUANTUM_attacks)
-
-A common mantra for good security (that is way overused now) is "encrypted in transit and at rest".
-</details>
-
-### A04:2021 Insecure Design
-
-As your application's complexity increases, security moves from a concern around individual apps to a concern about the overall architecture.
-
->A new category for 2021 focuses on risks related to design and architectural flaws, with a call for more use of threat modeling, secure design patterns, and reference architectures. As a community we need to move beyond "shift-left" in the coding space to pre-code activities that are critical for the principles of Secure by Design.
-
-When microservices start to proliferate, it becomes harder to ensure that every backend is implementing security controls correctly. Let's lift these controls into their own layers in our architecture.
-
-#### Introducing API Gateway
-
-An API gateway is an application that sits in front of the API and acts as a single entry point that routes client API requests to your backend microservices. It is useful for adding additional security controls without needing to modify the backend microservices themselves.
-
-We'll use an API gateway to handle ingress (incoming) HTTP requests to our cluster. Then use it to add security features, such as request rate limiting, which can protect against credential-stuffing attacks.
-
-K3s comes with a reverse proxy and HTTP ingress controller called Traefik. It has a library of middleware plugins for extending the capabilities of the proxy to add gateway functionality.
-
-Let's configure the cluster to use the gateway:
-```shell
-kubectl apply -f kubernetes/api-gateway.yaml
-```
-
-Now we don't need to port-forward to make requests to our API microservice! You can simply run a curl command to the cluster:
-```shell
-curl -i https://localhost:9443/api/v1/users
-#HTTP/2 200
-#content-type: application/json; charset=utf-8
-#date: Wed, 23 Aug 2023 03:07:35 GMT
-#etag: W/"4e4c-iChHJ1SEQjA0Es1Jbd0WBH9mWLU"
-#x-powered-by: Express
-#content-length: 20044
-
-#[{"id":0,"credit_card":...
-```
-
-Now let's install the [RateLimit](https://doc.traefik.io/traefik/middlewares/http/ratelimit/) middleware, by updating our [kubernetes/api-gateway.yaml](kubernetes/api-gateway.yaml):
-
-```diff
-// kubernetes/api-gateway.yaml
-+---
-+apiVersion: traefik.containo.us/v1alpha1
-+kind: Middleware
-+metadata:
-+  name: http-ratelimit
-+  namespace: default
-+spec:
-+  rateLimit:
-+    average: 100
-+    burst: 50
----
-apiVersion: traefik.containo.us/v1alpha1
-kind: ServersTransport
-
-# ...
-
----
-apiVersion: traefik.containo.us/v1alpha1
-kind: IngressRoute
-metadata:
-  name: api-ingress
-  namespace: default
-spec:
-  entryPoints:
-    - websecure
-  routes:
-  - kind: Rule
-    match: PathPrefix(`/api/v1`)
-    services:
-    - name: api
-      port: 443
-      serversTransport: tls-transport
-    middlewares:
-+    - name: http-ratelimit
-    - name: strip-api-prefix
-  tls:
-    secretName: api-tls
-```
-
-You can port forward the `traefik` container to view the dashboard:
-
-```shell
-kubectl get pods -n kube-system
-# NAME                                      READY   STATUS      RESTARTS       AGE
-# traefik-56cfc7b59f-4xpqd                  1/1     Running     0              21s
-# ... other pods
-kubectl port-forward -n kube-system traefik-56cfc7b59f-4xpqd 9000:9000
-```
-
-Now open [http://localhost:9000/dashboard/#/](http://localhost:9000/dashboard/#/) in your browser, and you should see the middleware installed successfully:
-![](data/images/traefik-dashboard.png)
-
 #### Introducing JumpWire
 
 Um, what is JumpWire? Similar to an API gateway that secures HTTP requests, [JumpWire](https://github.com/extragoodlabs/jumpwire) proxies and examines SQL queries made to a database. It provides access controls - authenticating clients who attempt to connect to the database. It also enforces authorization, by rejecting queries that attempt to access data that the client is not allowed to read or modify. There are also features for encrypting sensitive data, joining data across separate databases, and enterprise goodies like auditing who is accessing what data.
@@ -1285,13 +1297,11 @@ curl -H "Authorization: Bearer $API_TOKEN" https://localhost:3000/users | jq '.[
 
 <details>
 <summary>Go deeper</summary>
-Architecture design can impact the overall security of an application. By adding components that have a specific purpose, we can ensure that security is applied consistently across many microservices while also reducing the complexity of individual applications.
+It used to be standard to "terminate TLS encryption", or decrypt, HTTP requests at a point when they entered the backend. For example, it was common for a gateway or load balancer to decrypt an HTTP request before sending it to one of the backend clusters. Or when making inter-service requests between microservices, they would only be configured to use unencrypted HTTP.
 
-As we introduce additional API routes, or background jobs, or even new web applications, the gateways can operate agnostic to the technology being used by microservices.
+Now that attackers are becoming adept at getting access to internal systems, unencrypted requests can be exploited to steal data. This isn't used just for malicious purposes, the NSA famously exploited this to spy on many companies, including [mighty Google](https://en.wikipedia.org/wiki/Tailored_Access_Operations#QUANTUM_attacks)
 
-[CWE-501](https://cwe.mitre.org/data/definitions/501.html) lays out the principle of "trust boundaries", which are logical divisions in an application which data moves across. Adding layers that are dedicated to controlling those boundaries give you more control over security.
-
-There is also a strategy called "defense in depth". This describes an approach of not relying on a single control to provide security for a large portion of an application. Instead there should be multiple controls enforcing security, so that when one is compromised, an attacker does not gain "keys to the kingdom". By adding gateways to manage connections between different parts of our archiecture, we decrease the likelihood that a failure can allow for all data to be stolen.
+A common mantra for good security (that is way overused now) is "encrypted in transit and at rest". Using encryption in more places across the stack is both practical, the computational overhead of encryption is less of an impact, and increasingly necessary.
 </details>
 
 ### A05:2021 Security Misconfiguration
