@@ -770,9 +770,9 @@ kubectl -n cert-manager create secret generic ca-key-pair \
   --from-file=tls.key="$(mkcert -CAROOT)/rootCA-key.pem"
 # secret/ca-key-pair created
 
-# also add the CA cert as a ConfigMap for use by any pods
-kubectl create configmap ca-cert --from-file=ca.crt="$(mkcert -CAROOT)/rootCA.pem"
-# configmap/ca-cert created
+# also add the CA cert as a secrets for use by any pods
+kubectl create secret generic ca-cert --from-file=ca.crt="$(mkcert -CAROOT)/rootCA.pem"
+# secret/ca-cert created
 
 # create a ClusterIssuer to use the secret
 kubectl apply -f kubernetes/ca-clusterissuer.yaml
@@ -922,8 +922,8 @@ You may have noticed pods from reconciler are now failing. It is still trying to
                 name: reconciler-secrets
 +          volumes:
 +          - name: tls-cert
-+            configMap:
-+              name: ca-cert
++            secret:
++              secretName: ca-cert
 ```
 
 ``` diff
@@ -1090,15 +1090,15 @@ kubectl apply -f kubernetes/api-gateway.yaml
 
 Now we don't need to port-forward to make requests to our API microservice! You can simply run a curl command to the cluster:
 ```shell
-curl -i localhost:9080/api/v1/users
-# HTTP/1.1 200 OK
-# Content-Length: 20044
-# Content-Type: application/json; charset=utf-8
-# Date: Tue, 22 Aug 2023 01:28:12 GMT
-# Etag: W/"4e4c-iChHJ1SEQjA0Es1Jbd0WBH9mWLU"
-# X-Powered-By: Express
-#
-# [{"id":0,"credit_card":...
+curl -i https://localhost:9443/api/v1/users
+#HTTP/2 200
+#content-type: application/json; charset=utf-8
+#date: Wed, 23 Aug 2023 03:07:35 GMT
+#etag: W/"4e4c-iChHJ1SEQjA0Es1Jbd0WBH9mWLU"
+#x-powered-by: Express
+#content-length: 20044
+
+#[{"id":0,"credit_card":...
 ```
 
 Now let's install the [RateLimit](https://doc.traefik.io/traefik/middlewares/http/ratelimit/) middleware, by updating our [kubernetes/api-gateway.yaml](kubernetes/api-gateway.yaml):
@@ -1110,30 +1110,38 @@ Now let's install the [RateLimit](https://doc.traefik.io/traefik/middlewares/htt
 +kind: Middleware
 +metadata:
 +  name: http-ratelimit
-+  namespace: kube-system
++  namespace: default
 +spec:
 +  rateLimit:
 +    average: 100
 +    burst: 50
 ---
 apiVersion: traefik.containo.us/v1alpha1
-kind: Middleware
-metadata:
-  name: strip-api-prefix
+kind: ServersTransport
 
-...
+# ...
 
 ---
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
 metadata:
-  name: apigateway
-  annotations:
-+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-http-ratelimit@kubernetescrd
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-strip-api-prefix@kubernetescrd
+  name: api-ingress
+  namespace: default
 spec:
-
-...
+  entryPoints:
+    - websecure
+  routes:
+  - kind: Rule
+    match: PathPrefix(`/api/v1`)
+    services:
+    - name: api
+      port: 443
+      serversTransport: tls-transport
+    middlewares:
++    - name: http-ratelimit
+    - name: strip-api-prefix
+  tls:
+    secretName: api-tls
 ```
 
 You can port forward the `traefik` container to view the dashboard:
