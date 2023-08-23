@@ -198,7 +198,7 @@ And issue a request to the API:
 curl -i localhost:3000/
 ```
 
-You'll see this result:
+You'll see this result, the header `X-Powered-By: Express` indicates this response is coming from our Express backend app:
 ```text
 HTTP/1.1 404 Not Found
 X-Powered-By: Express
