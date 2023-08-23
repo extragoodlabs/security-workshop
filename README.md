@@ -92,12 +92,13 @@ Now deploy the services to the cluster:
 ```shell
 kubectl apply -f kubernetes/postgres.yaml
 kubectl rollout status -w statefulset/postgres
-kubectl apply -f kubernetes/api.yaml
-kubectl rollout status -w deployment/api
-kubectl apply -f kubernetes/reconciler.yaml
+./build-deploy api
+./build-deploy reconciler
 ```
 
-After a minute, the CronJob will trigger and you will see 3 pods (2 running and 1 completed):
+The first time running the `build-deploy` for each service could take a few minutes as it needs to pull and build a Docker image and then load it into the Kubernetes cluster. Future deploys will be quicer.
+
+Once deployed, the CronJob will trigger and you will see 3 pods (2 running and 1 completed):
 
 ```shell
 kubectl get pods
@@ -127,78 +128,14 @@ kubectl port-forward svc/api 3000:80
 # Forwarding from [::1]:3000 -> 3000
 ```
 
-and then in another shell
+and then in another shell issue a request to the API:
 
-``` shell
-curl -i localhost:3000/users
-# HTTP/1.1 200 OK
-# X-Powered-By: Express
-# Content-Type: application/json; charset=utf-8
-# Content-Length: 20044
-# ETag: W/"4e4c-iChHJ1SEQjA0Es1Jbd0WBH9mWLU"
-# Date: Thu, 17 Aug 2023 18:18:23 GMT
-# Connection: keep-alive
-# Keep-Alive: timeout=5
-#
-# [...json data...]
-```
-
-## Modifying this application
-
-Use your favorite code editor to make modifications to this project. While we provide change diffs in the exercises below, we encourage you to make the updates without using copy/paste.
-
-As you update code for each exercise, you can push your changes into the k8s cluster using the `build-deploy` script. To test this, we'll make a small change to the API service and redeploy it.
-
-Make the following code change to the API service:
-
-```diff
-// src/api/routes/index.js
-const express = require('express');
-const router = express.Router();
-
-router.get('/', function(req, res, next) {
--    res.status(404).json({error: "unknown"});
-+    res.status(404).json({error: "not found"});
-});
-
-module.exports = router;
-```
-
-Then run the script to deploy the change:
-
-``` shell
-./build-deploy api
-# sha256:6bbf513f4fd7db092d698e50424a00128a190223ab2b72ba8fc02c3b04ab2346
-# INFO[0000] Importing image(s) into cluster 'workshop'
-# INFO[0000] Starting new tools node...
-# INFO[0000] Starting Node 'k3d-workshop-tools'
-# INFO[0000] Saving 1 image(s) from runtime...
-# INFO[0009] Importing images into nodes...
-# INFO[0009] Importing images from tarball '/k3d/images/k3d-workshop-images-20230817143454.tar' into node 'k3d-workshop-server-0'...
-# INFO[0011] Removing the tarball(s) from image volume...
-# INFO[0012] Removing k3d-tools node...
-# INFO[0012] Successfully imported image(s)
-# INFO[0012] Successfully imported 1 image(s) into 1 cluster(s)
-# service/api unchanged
-# deployment.apps/api unchanged
-# deployment.apps/api restarted
-# Waiting for deployment "api" rollout to finish: 1 old replicas are pending termination...
-# Waiting for deployment "api" rollout to finish: 1 old replicas are pending termination...
-# deployment "api" successfully rolled out
-```
-
-Now in separate terminal tabs, start the port forward:
-
-```shell
-kubectl port-forward svc/api 3000:80
-```
-
-And issue a request to the API:
 ```shell
 curl -i localhost:3000/
 ```
 
 You'll see this result, the header `X-Powered-By: Express` indicates this response is coming from our Express backend app:
+
 ```text
 HTTP/1.1 404 Not Found
 X-Powered-By: Express
