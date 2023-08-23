@@ -1389,9 +1389,9 @@ Additionally, absence of security headers in an HTTP response can indicate that 
 
 ### A09:2021 Security Logging and Monitoring Failures
 
->Security logging and monitoring came from the Top 10 community survey (#3), up slightly from the tenth position in the OWASP Top 10 2017. Logging and monitoring can be challenging to test, often involving interviews or asking if attacks were detected during a penetration test.
+An important tool for security is being able to observe how our systems are operating, and correlating events that may indicate attempts at malicious activity.
 
-Set up logs and alerts!
+>Security logging and monitoring came from the Top 10 community survey (#3), up slightly from the tenth position in the OWASP Top 10 2017. Logging and monitoring can be challenging to test, often involving interviews or asking if attacks were detected during a penetration test.
 
 Logging, and observability in general, is a deep topic with many approaches, tools, and vendors. In a security context, one aspect that's critical is aggregating access events into a single location. Even just starting with manual reviews gives a decent foundation that can be built on over time.
 
@@ -1399,7 +1399,7 @@ We'll use the EFK stack to aggregate our logs:
 
 - Elasticsearch stores, indexes, and searches logs
 - Fluentd watches for new logs and events and sends them to Elasticsearch
-- Kibana visualizes our searches and can perform alerting
+- Kibana visualizes our searches and can help us monitor activity in the cluster that may correspond to security incidents
 
 In our setup, fluentd will run on every Kubernetes node and tail the logs of every pod. It will attach metadata to the log context (IP address, pod name, etc) before forewarding them. This mostly works out of the box - the full setup is in [kubernetes/efk-manifests.yaml](kubernetes/efk-manifests.yaml).
 
