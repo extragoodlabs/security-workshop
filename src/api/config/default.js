@@ -6,5 +6,6 @@ module.exports = {
         database: "bank",
         username: "postgres",
         password: "postgres"
-    }
+    },
+    token_secret: ""
 }
