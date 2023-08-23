@@ -245,14 +245,14 @@ kubectl apply -f kubernetes/api-gateway.yaml
 Now we don't need to port-forward to make requests to our API microservice! You can simply run a curl command to the cluster:
 ```shell
 curl -i http://localhost:9080/api/users
-#HTTP/2 200
-#content-type: application/json; charset=utf-8
-#date: Wed, 23 Aug 2023 03:07:35 GMT
-#etag: W/"4e4c-iChHJ1SEQjA0Es1Jbd0WBH9mWLU"
-#x-powered-by: Express
-#content-length: 20044
-
-#[{"id":0,"credit_card":...
+# HTTP/2 200
+# content-type: application/json; charset=utf-8
+# date: Wed, 23 Aug 2023 03:07:35 GMT
+# etag: W/"4e4c-iChHJ1SEQjA0Es1Jbd0WBH9mWLU"
+# x-powered-by: Express
+# content-length: 20044
+#
+# [{"id":0,"credit_card":...
 ```
 
 Let's install the [RateLimit](https://doc.traefik.io/traefik/middlewares/http/ratelimit/) middleware, by updating our [kubernetes/api-gateway.yaml](kubernetes/api-gateway.yaml):
@@ -410,8 +410,7 @@ Test it out!
 ```
 
 ```shell
-kubectl port-forward svc/api 3000:80
-curl -X POST http://localhost:3000/token -H 'Content-Type: application/json' -d '{"username":"myfaveusername"}'
+curl -X POST http://localhost:9080/api/token -H 'Content-Type: application/json' -d '{"username":"myfaveusername"}'
 # {"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZWJ1c3N5bWFuIiwiaWF0IjoxNjkyNDYyMzUwLCJleHAiOjE2OTI0NjQxNTB9.79AE9f7DVCSGhfi8BC3SMSbbEbRCCf5H-URljMa7xcg"}
 ```
 
@@ -497,15 +496,13 @@ Now each of these routes will require a valid JWT header to be present in the re
 Try a request without a token, and you should see a `401 Unauthorized` response:
 
 ```shell
-curl -i http://localhost:3000/users
+curl -i http://localhost:9080/api/users
 # HTTP/1.1 401 Unauthorized
 # X-Powered-By: Express
 # Content-Type: text/plain; charset=utf-8
 # Content-Length: 12
 # ETag: W/"c-dAuDFQrdjS3hezqxDTNgW7AOlYk"
 # Date: Mon, 21 Aug 2023 20:35:43 GMT
-# Connection: keep-alive
-# Keep-Alive: timeout=5
 #
 # Unauthorized
 ```
@@ -564,7 +561,7 @@ Deploy the API and start port forwarding again:
 Now we can generate a token by reading the token secret from the Kubernetes secret `api-secrets`:
 
 ```shell
-curl -X POST http://localhost:3000/token -H 'Content-Type: application/json' -d '{"username":"debussyman"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)"
+curl -X POST http://localhost:9080/api/token -H 'Content-Type: application/json' -d '{"username":"debussyman"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)"
 ```
 
 #### Adding authorization
@@ -680,21 +677,19 @@ kubectl port-forward svc/api 3000:80
 Let's first create a token without any permissions:
 
 ```shell
-curl -i -X POST http://localhost:3000/token -H 'Content-Type: application/json' -d '{"username":"debussyman","permissions":"[]"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)"
+curl -i -X POST http://localhost:9080/api/token -H 'Content-Type: application/json' -d '{"username":"debussyman","permissions":"[]"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)"
 ```
 
 Then use that token to call an endpoint. We should get a `403 Forbidden` response
 
 ```shell
-curl -i http://localhost:3000/users -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZWJ1c3N5bWFuIiwiaHR0cHM6Ly9mdGRjLmp1bXB3aXJlLmlvL3Blcm1pc3Npb25zIjpbXSwiaWF0IjoxNjkyNjUwMzE1LCJleHAiOjE2OTI2NTIxMTV9._CsjMJ8JxEnrilOOFh3YEdoJ78Q3WQAVRYD5cjChstI"
+curl -i http://localhost:9080/api/users -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZWJ1c3N5bWFuIiwiaHR0cHM6Ly9mdGRjLmp1bXB3aXJlLmlvL3Blcm1pc3Npb25zIjpbXSwiaWF0IjoxNjkyNjUwMzE1LCJleHAiOjE2OTI2NTIxMTV9._CsjMJ8JxEnrilOOFh3YEdoJ78Q3WQAVRYD5cjChstI"
 # HTTP/1.1 403 Forbidden
 # X-Powered-By: Express
 # Content-Type: text/plain; charset=utf-8
 # Content-Length: 9
 # ETag: W/"9-PatfYBLj4Um1qTm5zrukoLhNyPU"
 # Date: Mon, 21 Aug 2023 20:56:00 GMT
-# Connection: keep-alive
-# Keep-Alive: timeout=5
 #
 # Forbidden
 ```
@@ -702,13 +697,13 @@ curl -i http://localhost:3000/users -H "Authorization: Bearer eyJhbGciOiJIUzI1Ni
 That looks golden! Let's generate a token with permissions:
 
 ```shell
-curl -X POST http://localhost:3000/token -H 'Content-Type: application/json' -d '{"username":"debussyman","permissions":"[\"read:user\",\"modify:user\"]"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)"
+curl -X POST http://localhost:9080/api/token -H 'Content-Type: application/json' -d '{"username":"debussyman","permissions":"[\"read:user\",\"modify:user\"]"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)"
 ```
 
 Which can be used for requests to our API:
 
 ```shell
-curl -i localhost:3000/users -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZWJ1c3N5bWFuIiwiaHR0cHM6Ly9mdGRjLmp1bXB3aXJlLmlvL3Blcm1pc3Npb25zIjpbInJlYWQ6dXNlciIsIm1vZGl0eTp1c2VyIl0sImlhdCI6MTY5MjU3NjI2OSwiZXhwIjoxNjkyNTc4MDY5fQ.-hnjCcQh0rFWkALT2kEaVCD2Mm2bk_Lu2eK0P9jjyp4"
+curl -i localhost:9080/api/users -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZWJ1c3N5bWFuIiwiaHR0cHM6Ly9mdGRjLmp1bXB3aXJlLmlvL3Blcm1pc3Npb25zIjpbInJlYWQ6dXNlciIsIm1vZGl0eTp1c2VyIl0sImlhdCI6MTY5MjU3NjI2OSwiZXhwIjoxNjkyNTc4MDY5fQ.-hnjCcQh0rFWkALT2kEaVCD2Mm2bk_Lu2eK0P9jjyp4"
 ```
 
 The last step is to give our background job a token so that it can call our API! (If you run `kubectl get pods`, you might notice that the reconciler pod is crashing).
@@ -716,7 +711,7 @@ The last step is to give our background job a token so that it can call our API!
 Let's create another Kubernetes secret with a valid JWT for the reconciler app to use:
 
 ```shell
-APP_TOKEN=$(curl -X POST http://localhost:3000/token -H 'Content-Type: application/json' -d '{"username":"debussyman","permissions":"[\"read:user\",\"modify:user\"]"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)" | jq -r '.token')
+APP_TOKEN=$(curl -X POST http://localhost:9080/api/token -H 'Content-Type: application/json' -d '{"username":"debussyman","permissions":"[\"read:user\",\"modify:user\"]"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)" | jq -r '.token')
 kubectl create secret generic reconciler-secrets \
   --from-literal=APP_TOKEN=$APP_TOKEN
 ```
@@ -996,13 +991,15 @@ This will cause cert-manager to issue certificates and store them in Secrets in 
 +}, app);
 ```
 
-Deploy the API service with `./build-deploy api`, and start [port forwarding](#connecting-to-the-api) again when it finishes - note that the port forwarding should now point to port 443 instead of 80! Now try an HTTPS request:
+Deploy the API service with `./build-deploy api`.
+
+Now try an HTTPS request:
 
 
 ``` shell
-curl -v https://localhost:3000/
-# *   Trying 127.0.0.1:3000...
-# * Connected to localhost (127.0.0.1) port 3000 (#0)
+curl -v https://localhost:9443/api/
+# *   Trying 127.0.0.1:9443...
+# * Connected to localhost (127.0.0.1) port 9443 (#0)
 # * ALPN: offers h2
 # * ALPN: offers http/1.1
 # *  CAfile: /etc/ssl/cert.pem
@@ -1015,7 +1012,7 @@ curl -v https://localhost:3000/
 # * [CONN-0-0][CF-SSL] (304) (IN), TLS handshake, Finished (20):
 # * [CONN-0-0][CF-SSL] (304) (OUT), TLS handshake, Finished (20):
 # * SSL connection using TLSv1.3 / AEAD-AES256-GCM-SHA384
-# * ALPN: server accepted http/1.1
+# * ALPN: server accepted http/2
 # * Server certificate:
 # *  subject: O=fintech-devcon-jumpwire-workshop
 # *  start date: Aug 21 16:40:14 2023 GMT
@@ -1029,7 +1026,7 @@ curl -v https://localhost:3000/
 # > Accept: */*
 # >
 # * Mark bundle as not supporting multiuse
-# < HTTP/1.1 404 Not Found
+# < HTTP/2 404 Not Found
 # < X-Powered-By: Express
 # < Content-Type: application/json; charset=utf-8
 # < Content-Length: 21
@@ -1297,10 +1294,10 @@ Run `./build-deploy api` to deploy the update. Now when you query the API servic
 
 ``` shell
 # generate a token for the API service
-set API_TOKEN=$(curl -X POST https://localhost:3000/token -H 'Content-Type: application/json' -d '{"username":"debussyman","permissions":"[\"read:user\",\"modify:user\"]"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)" | jq -r '.token')
+set API_TOKEN=$(curl -X POST https://localhost:9443/api/token -H 'Content-Type: application/json' -d '{"username":"debussyman","permissions":"[\"read:user\",\"modify:user\"]"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)" | jq -r '.token')
 
 # curl the API
-curl -H "Authorization: Bearer $API_TOKEN" https://localhost:3000/users | jq '.[:2]'
+curl -H "Authorization: Bearer $API_TOKEN" https://localhost:9443/api/users | jq '.[:2]'
 # [
 #   {
 #     "id": 0,
@@ -1348,17 +1345,17 @@ Let's harden our web server by changing the default configuration and adding add
 
 For example, our API server adds a response header `X-Powered-By: Express`
 ```shell
-curl -vv http://localhost:3000
-# *   Trying 127.0.0.1:3000...
-# * Connected to localhost (127.0.0.1) port 3000 (#0)
-# > GET / HTTP/1.1
-# > Host: localhost:3000
-# > User-Agent: curl/7.81.0
-# > Accept: */*
+curl -vv https://localhost:9443/api
+# *   Trying 127.0.0.1:9443...
+# * Connected to localhost (127.0.0.1) port 9443 (#0)
+# > GET / HTTP/2
+# > host: localhost:3000
+# > user-agent: curl/7.81.0
+# > accept: */*
 # >
 # * Mark bundle as not supporting multiuse
-# < HTTP/1.1 200 OK
-# < X-Powered-By: Express
+# < HTTP/2 200 OK
+# < x-powered-by: Express
 ```
 
 This can be easily disabled, add the following configuration to [src/api/app.js](src/api/app.js):
