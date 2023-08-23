@@ -736,7 +736,7 @@ Encryption was invented thousands of years ago to protect information from falli
 
 #### Introducing HTTP connection encryption
 
-For issueing certificates, we'll be setting up [cert-manager](https://cert-manager.io/). This sits in our cluster and issues certificates based on metadata for running services. In a production environment, you would have cert-manager use something like HashiCorp Vault or LetsEncrypt to get valid short-lived certificates, but for this workshop we'll configure it to act as its own certificate authority.
+For issuing certificates, we'll be setting up [cert-manager](https://cert-manager.io/). This sits in our cluster and issues certificates based on metadata for running services. In a production environment, you would have cert-manager use something like HashiCorp Vault or LetsEncrypt to get valid short-lived certificates, but for this workshop we'll configure it to act as its own certificate authority.
 
 ``` shell
 # setup cert-manager
