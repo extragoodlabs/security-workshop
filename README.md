@@ -251,43 +251,7 @@ A JWT will be passed in an HTTP request header for all requests made to our API,
 
 #### Adding JWT authentication to Express
 
-We'll use a NodeJS library `jsonwebtoken` to generate and validate our JWTs. And we'll load a signing secret, used to generate and validate tokens, from an environment variable using the library `dotenv`.
-
-First let's add that library as a dependency to our API application. Update the [package.json](src/api/package.json) -
-
-```diff
-// src/api/package.json
-{
-  "name": "api",
-  "version": "0.0.0",
-  "private": true,
-  "scripts": {
-    "start": "node ./bin/www"
-  },
-  "dependencies": {
-    "config": "^3.3.9",
-    "cookie-parser": "~1.4.4",
-    "debug": "~2.6.9",
-    "express": "~4.16.1",
-+    "jsonwebtoken": "~9.0.0",
-    "pg": "^8.11.1",
-    "pino": "^8.15.0",
-    "pino-http": "^8.4.0",
-    "sequelize": "^6.32.1"
-  }
-}
-```
-
-Now generate the signing key. This should be kept a secret! It's how the application will know that a token is valid. We'll create a random string that is stored by Kubernetes and injected as an environment variable for our API backend.
-
-Create some randomness:
-
-```shell
-# Create random secret. We'll use the token later to interact with the API
-kubectl create secret generic api-secrets \
-  --from-literal=TOKEN_SECRET=$(cat /dev/urandom | base64 | head -c 64)
-# secret/jumpwire-secrets created
-```
+We'll use a NodeJS library `jsonwebtoken` to generate and validate our JWTs. And we'll load a signing secret, used to generate and validate tokens, from an environment variable. Our cluster setup precreates the value - in a production deployment you would generate a unique highly random secret for this.
 
 You can read the secret using this command:
 
@@ -296,42 +260,7 @@ kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --dec
 # pVNSnxcBPi4mKBfwvPlMHuNc1xyABEIvNcLC0F9fr2zoSJp9BA5FMbu4dbLpyWpm
 ```
 
-To load the secret as an environment variable in our API, update the [api.yaml](kubernetes/api.yaml):
-
-```diff
-// kubernetes/api.yaml
-        env:
-        - name: APP_DB_HOST
-          value: postgres
-        - name: APP_DB_USERNAME
-          value: postgres
-        - name: APP_DB_PASSWORD
-          value: postgres
-+        envFrom:
-+        - secretRef:
-+            name: api-secrets
-
-```
-
-Let's update the API [environment config](src/api/config/custom-environment-variables.json) to read the environment variable:
-
-```diff
-// src/api/config/custom-environment-variables.json
-{
-  "database": {
-    "host": "APP_DB_HOST",
-    "port": "APP_DB_PORT",
-    "database": "APP_DB_DBNAME",
-    "username": "APP_DB_USERNAME",
-    "password": "APP_DB_PASSWORD"
--  }
-+  },
-+  "token_secret": "TOKEN_SECRET"
-}
-
-```
-
-Next up, let's add some code to our API [index.js](src/api/routes/index.js)  to generate tokens for our API. First load the secret from the environment variable -
+The API service is already configured to read [the environment variable](src/api/config/custom-environment-variables.json) on startup, but it doesn't do anything with it. Let's add some code to our API [index.js](src/api/routes/index.js)  to generate tokens for our API. First load the secret from the config:
 
 ```diff
 // src/api/routes/index.js
