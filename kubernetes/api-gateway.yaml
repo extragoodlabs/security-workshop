@@ -1,28 +1,42 @@
 ---
 apiVersion: traefik.containo.us/v1alpha1
+kind: ServersTransport
+metadata:
+  name: tls-transport
+  namespace: default
+
+spec:
+  serverName: api
+  rootCAsSecrets:
+    - ca-cert
+---
+apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
   name: strip-api-prefix
-  namespace: kube-system
+  namespace: default
+
 spec:
   stripPrefix:
     prefixes:
       - /api/v1
 ---
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
 metadata:
-  name: apigateway
-  annotations:
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-strip-api-prefix@kubernetescrd
+  name: api-ingress
+  namespace: default
 spec:
-  rules:
-  - http:
-      paths:
-      - path: /api/v1
-        pathType: Prefix
-        backend:
-          service:
-            name: api
-            port:
-              name: http
+  entryPoints:
+    - websecure
+  routes:
+  - kind: Rule
+    match: PathPrefix(`/api/v1`)
+    services:
+    - name: api
+      port: 443
+      serversTransport: tls-transport
+    middlewares:
+    - name: strip-api-prefix
+  tls:
+    secretName: api-tls
