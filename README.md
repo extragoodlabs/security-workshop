@@ -888,7 +888,7 @@ kubectl get clusterissuer
 # ca-issuer   True    60s
 ```
 
-Now we can issue certificates for our services. Let's get one for the API gateway:
+Now we can issue certificates for our services. This will cause cert-manager to issue certificates and store them in Secrets in Kubernetes. Each service will have its own certificate, issued by the same CA. Let's get one for the API gateway:
 ``` shell
 kubectl apply -f kubernetes/ingress-certificate.yaml
 # certificate.cert-manager.io/ingress created
@@ -896,7 +896,7 @@ kubectl apply -f kubernetes/ingress-certificate.yaml
 
 Add it to our gateway in [api-gateway.yaml](kubernetes/api-gateway.yaml):
 ```diff
-# kubernetes/api-gateway.yaml
+// kubernetes/api-gateway.yaml
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
@@ -917,17 +917,15 @@ spec:
     - name: strip-api-prefix
 +  tls:
 +    secretName: ingress-tls
+
 ```
 
 And apply:
-
 ```shell
 kubectl apply -f kubernetes/api-gateway.yaml
 ```
 
 Now try an HTTPS request:
-
-
 ``` shell
 curl -v https://localhost:9443/api/
 # *   Trying 127.0.0.1:9443...
@@ -982,13 +980,15 @@ It works! And curl validated the certificate - this is because we set `localhost
 
 ![or it's magic](https://media.giphy.com/media/12NUbkX6p4xOO4/giphy.gif)
 
+You might be thinking that we are all set with encrypting HTTP, but that's not good enough for a security workshop. The HTTP requests within our cluster are still unencrypted! This is happening in both the requests from our gateway to our API backend as well as requests from our reconciler job to our API backend.
+
+Let's add HTTP encryption to the API backend. Create another certificate for the Express app to use:
 ``` shell
 kubectl apply -f kubernetes/api-certificate.yaml
 # certificate.cert-manager.io/api created
 ```
 
-This will cause cert-manager to issue certificates and store them in Secrets in Kubernetes. Each service should have its own certificate, issued by the same CA. We'll update our services to mount in those certificates and start using them:
-
+The API service can now mount the certificates in the pod by updating [api.yaml](kubernetes/api.yaml):
 ```diff
 // kubernetes/api.yaml
      app: api
@@ -1000,8 +1000,7 @@ This will cause cert-manager to issue certificates and store them in Secrets in 
       name: http
    selector:
 
-
-...
+# ...
 
        labels:
          app: api
@@ -1037,7 +1036,7 @@ This will cause cert-manager to issue certificates and store them in Secrets in 
 +var https = require('https');
 +var fs = require('fs');
 
-...
+// ...
 
 -var server = http.createServer(app);
 +var certDir = process.env.TLS_CERT_DIR || '/etc/tls';
