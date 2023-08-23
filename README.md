@@ -244,7 +244,7 @@ kubectl apply -f kubernetes/api-gateway.yaml
 
 Now we don't need to port-forward to make requests to our API microservice! You can simply run a curl command to the cluster:
 ```shell
-curl -i https://localhost:9443/api/v1/users
+curl -i http://localhost:9080/api/users
 #HTTP/2 200
 #content-type: application/json; charset=utf-8
 #date: Wed, 23 Aug 2023 03:07:35 GMT
@@ -255,7 +255,7 @@ curl -i https://localhost:9443/api/v1/users
 #[{"id":0,"credit_card":...
 ```
 
-Now let's install the [RateLimit](https://doc.traefik.io/traefik/middlewares/http/ratelimit/) middleware, by updating our [kubernetes/api-gateway.yaml](kubernetes/api-gateway.yaml):
+Let's install the [RateLimit](https://doc.traefik.io/traefik/middlewares/http/ratelimit/) middleware, by updating our [kubernetes/api-gateway.yaml](kubernetes/api-gateway.yaml):
 
 ```diff
 // kubernetes/api-gateway.yaml
@@ -269,7 +269,6 @@ Now let's install the [RateLimit](https://doc.traefik.io/traefik/middlewares/htt
 +  rateLimit:
 +    average: 100
 +    burst: 50
----
 ---
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
@@ -295,14 +294,14 @@ spec:
     match: PathPrefix(`/api`)
     services:
     - name: api
-      port: 443
+      port: 80
     middlewares:
 +    - name: http-ratelimit
     - name: strip-api-prefix
 
 ```
 
-Let's update configure the cluster to add ratelimiting:
+Let's update configure the cluster to add the new middleware:
 ```shell
 kubectl apply -f kubernetes/api-gateway.yaml
 ```
@@ -330,7 +329,6 @@ As we introduce additional API routes, or background jobs, or even new web appli
 
 There is also a strategy called "defense in depth". This describes an approach of not relying on a single control to provide security for a large portion of an application. Instead there should be multiple controls enforcing security, so that when one is compromised, an attacker does not gain "keys to the kingdom". By adding gateways to manage connections between different parts of our architecture, we decrease the likelihood that a failure can allow for all data to be stolen.
 </details>
-
 
 ### A01:2021 Broken Access Control
 
@@ -362,7 +360,7 @@ A JWT will be passed in an HTTP request header for all requests made to our API,
 
 #### Adding JWT authentication to Express
 
-We'll use a NodeJS library `jsonwebtoken` to generate and validate our JWTs. And we'll load a signing secret, used to generate and validate tokens, from an environment variable. Our cluster setup precreates the value - in a production deployment you would generate a unique highly random secret for this.
+We'll use a NodeJS library `jsonwebtoken` to generate and validate our JWTs. And we'll load a signing secret, used to generate and validate tokens, from an environment variable. Our cluster setup already created the value - in a production deployment you would generate a unique highly random secret for this.
 
 You can read the secret using this command:
 
@@ -895,7 +893,43 @@ kubectl get clusterissuer
 # ca-issuer   True    60s
 ```
 
-And now we can issue certificates for our services:
+Now we can issue certificates for our services. Let's get one for the API gateway:
+``` shell
+kubectl apply -f kubernetes/ingress-certificate.yaml
+# certificate.cert-manager.io/ingress created
+```
+
+Add it to our gateway in [api-gateway.yaml](kubernetes/api-gateway.yaml):
+```diff
+# kubernetes/api-gateway.yaml
+# ...
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: api-ingress
+  namespace: default
+spec:
+  entryPoints:
+-    - web
++    - websecure
+  routes:
+  - kind: Rule
+    match: PathPrefix(`/api`)
+    services:
+    - name: api
+      port: 80
+    middlewares:
+    - name: http-ratelimit
+    - name: strip-api-prefix
++  tls:
++    secretName: ingress-tls
+```
+
+And apply:
+```shell
+kubectl apply -f kubernetes/api-gateway.yaml
+```
 
 ``` shell
 kubectl apply -f kubernetes/api-certificate.yaml
