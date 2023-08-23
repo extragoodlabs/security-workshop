@@ -1283,9 +1283,7 @@ jwctl -u https://localhost:4443 client token ccf334b5-2d5a-45ee-a6dd-c34caf99e4d
 
 # Save the login info to a new Kubernetes secret - make sure to use the password from your
 # deployment, copying the one below will not work!
-kubectl create secret generic api-postgres-login \
-  --from-literal=APP_DB_USERNAME=0779b97a-c04a-48f9-9483-22e8b0487de4 \
-  --from-literal=APP_DB_PASSWORD=SFMyNTY.g2gDaAJtAAAAC29yZ19nZW5lcmljbQAAACRjY2YzMzRiNS0yZDVhLTQ1ZWUtYTZkZC1jMzRjYWY5OWU0ZDRuBgBM10gLigFiEswDAA.Zk31CwFi-ClR2ggAY6KJ7rMNvp5aHK7PXndrE8mCaU8
+kubectl create secret generic api-postgres-login --from-literal=APP_DB_USERNAME=[ADD USERNAME HERE] --from-literal=APP_DB_PASSWORD=[ADD PASSWORD HERE]
 # secret/api-postgres-login created
 ```
 
