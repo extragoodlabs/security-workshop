@@ -23,6 +23,6 @@ spec:
     match: PathPrefix(`/api`)
     services:
     - name: api
-      port: 443
+      port: 80
     middlewares:
     - name: strip-api-prefix
