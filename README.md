@@ -751,7 +751,7 @@ metadata:
   labels:
     app: reconciler
 spec:
-  schedule: "*/2 * * * *"
+  schedule: "*/1 * * * *"
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 5
   failedJobsHistoryLimit: 10
