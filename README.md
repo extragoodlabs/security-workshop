@@ -451,7 +451,7 @@ module.exports = {
 
 This function will verify that a token is valid: signed by our secret and not expired. It also assigns the token data to a request variable called `user`.
 
-We can use this function for endpoints. Let's update the [user routes](src/api/routes/users.js) -
+We can use this function for endpoints. Let's update the [users.js routes](src/api/routes/users.js) -
 
 ```diff
 // src/api/routes/users.js
@@ -491,6 +491,11 @@ const router = express.Router();
 +router.delete('/:id', authenticate, async function(req, res, next) {
 ```
 
+Deploy the changes:
+```shell
+./build-deploy api
+```
+
 Now each of these routes will require a valid JWT header to be present in the request to process it. Otherwise it will return a 401 response. We can make the same updates to the endpoints in [transactions.js](src/api/routes/transactions.js).
 
 Try a request without a token, and you should see a `401 Unauthorized` response:
@@ -507,7 +512,7 @@ curl -i http://localhost:9080/api/users
 # Unauthorized
 ```
 
-Finally, we'll secure the token endpoint using our token secret. We don't want just any John to be able to generate a token. Typically this endpoint would be secured with another authentication scheme, like a password login. For this exercise we'll just reuse the token signing secret.
+Finally, we'll secure the token endpoint using our token secret. We don't want just any John or Jane to be able to generate a token. Typically this endpoint would be secured with another authentication scheme, like a password login. For this exercise we'll just reuse the token signing secret.
 
 Add one more authentication middleware method to [auth.js](src/api/auth.js):
 
@@ -522,7 +527,7 @@ const authenticate = (req, res, next) => {
 +    const authHeader = req.headers["authorization"];
 +    const token = authHeader && authHeader.match(headerRegex);
 +
-+    if (token == null || token[1] !== tokenSecret) return res.sendStatus(403);
++    if (token == null || token[1] !== tokenSecret) return res.sendStatus(401);
 +
 +    next();
 +};
@@ -552,17 +557,29 @@ const tokenSecret = require("config").get("token_secret");
 
 ```
 
-Deploy the API and start port forwarding again:
-
+Deploy the API for the latest changes:
 ```shell
 ./build-deploy api
 ```
 
 Now we can generate a token by reading the token secret from the Kubernetes secret `api-secrets`:
-
 ```shell
 curl -X POST http://localhost:9080/api/token -H 'Content-Type: application/json' -d '{"username":"debussyman"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)"
 ```
+
+And use that token for an authenticated request:
+```shell
+ curl -i http://localhost:9080/api/users -H "Authorization: Bearer [ADD TOKEN HERE]"
+# HTTP/1.1 200 OK
+# Content-Length: 20044
+# Content-Type: application/json; charset=utf-8
+# Date: Wed, 23 Aug 2023 15:47:59 GMT
+# Etag: W/"4e4c-iChHJ1SEQjA0Es1Jbd0WBH9mWLU"
+# X-Powered-By: Express
+
+# [{"id":0,"credit_card":"342044649251781","currency":"USD","email":"selena_autem@hotmail.com","is_active":true,"country":"NO","num_logins":71,"password_hash":"199ca118cd1528f44faac4a013a92355","username":"arnulfo_consectetur","created_at":"2002-11-23T22:22:10.441Z"}, ...
+```
+
 
 #### Adding authorization
 
@@ -615,7 +632,7 @@ const authenticateRoot = (req, res, next) => {
 +      if (user && user["https://ftdc.jumpwire.io/permissions"].includes(permission)) {
 +          next();
 +      } else {
-+          return res.sendStatus(401);
++          return res.sendStatus(403);
 +      }
 +    };
 +};
@@ -667,23 +684,20 @@ const User = models.user;
 +router.delete('/:id', authenticate, authorize("modify:user"), async function(req, res, next) {
 ```
 
-Deploy the API and start port forwarding again:
-
+Deploy the API to pick up our changes:
 ``` shell
 ./build-deploy api
-kubectl port-forward svc/api 3000:80
 ```
 
 Let's first create a token without any permissions:
-
 ```shell
-curl -i -X POST http://localhost:9080/api/token -H 'Content-Type: application/json' -d '{"username":"debussyman","permissions":"[]"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)"
+curl -i -X POST http://localhost:9080/api/token -H 'Content-Type: application/json' -d '{"username":"myfaveusername","permissions":"[]"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)"
 ```
 
 Then use that token to call an endpoint. We should get a `403 Forbidden` response
 
 ```shell
-curl -i http://localhost:9080/api/users -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZWJ1c3N5bWFuIiwiaHR0cHM6Ly9mdGRjLmp1bXB3aXJlLmlvL3Blcm1pc3Npb25zIjpbXSwiaWF0IjoxNjkyNjUwMzE1LCJleHAiOjE2OTI2NTIxMTV9._CsjMJ8JxEnrilOOFh3YEdoJ78Q3WQAVRYD5cjChstI"
+curl -i http://localhost:9080/api/users -H "Authorization: Bearer [ADD TOKEN HERE]"
 # HTTP/1.1 403 Forbidden
 # X-Powered-By: Express
 # Content-Type: text/plain; charset=utf-8
@@ -697,7 +711,7 @@ curl -i http://localhost:9080/api/users -H "Authorization: Bearer eyJhbGciOiJIUz
 That looks golden! Let's generate a token with permissions:
 
 ```shell
-curl -X POST http://localhost:9080/api/token -H 'Content-Type: application/json' -d '{"username":"debussyman","permissions":"[\"read:user\",\"modify:user\"]"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)"
+curl -X POST http://localhost:9080/api/token -H 'Content-Type: application/json' -d '{"username":"myfaveusername","permissions":"[\"read:user\",\"modify:user\"]"}' -H "Authorization: Bearer $(kubectl get secret api-secrets -o jsonpath="{.data.TOKEN_SECRET}" | base64 --decode)"
 ```
 
 Which can be used for requests to our API:
@@ -716,10 +730,13 @@ kubectl create secret generic reconciler-secrets \
   --from-literal=APP_TOKEN=$APP_TOKEN
 ```
 
-Then we'll update our reconciler code to add the token as a HTTP header:
+Then we'll update our reconciler code to add the token as a HTTP header in [main.rs](src/reconciler/src/main.rs):
 
 ``` diff
 // src/reconciler/src/main.rs
+ use anyhow::{Error, Result};
+ use config::Config;
+ use itertools::Itertools;
  use reqwest::blocking::{Client, ClientBuilder};
 +use reqwest::header;
  use serde::Deserialize;
@@ -763,7 +780,17 @@ Then we'll update our reconciler code to add the token as a HTTP header:
 -    let body: Response = build_client()?.get(url).send()?.json()?;
 +    let body: Response = build_client(token)?.get(url).send()?.json()?;
 
-...
+// ...
+
+fn main() -> Result<()> {
+    let config_file = std::env::var("APP_CONFIG_FILE").unwrap_or("settings.json".into());
+
+    let config: HashMap<String, String> = Config::builder()
+        .add_source(config::File::with_name(&config_file))
+        .add_source(config::Environment::with_prefix("APP"))
+        .build()?
+        .try_deserialize()?;
+    println!("settings: {:?}", config);
 
      let api_url = config.get("api_url").unwrap();
      let base_url = Url::parse(api_url).unwrap();
