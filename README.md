@@ -1036,7 +1036,7 @@ The API service can now mount the certificates in the pod by updating [api.yaml]
 +var https = require('https');
 +var fs = require('fs');
 
-// ...
+//...
 
 -var server = http.createServer(app);
 +var certDir = process.env.TLS_CERT_DIR || '/etc/tls';
@@ -1048,7 +1048,49 @@ The API service can now mount the certificates in the pod by updating [api.yaml]
 
 Deploy the API service with `./build-deploy api`.
 
-You may have noticed pods from reconciler are now failing. It is still trying to use HTTP - we need to update it to use HTTPS for its API calls, including validation against the CA.
+Requests to the API backend from within our cluster are now broken, none of them are using HTTPS. Let's fix that. First, update the API gateway to use encryption for the backend service in [api-gateway.yaml](kubernetes/api-gateway.yaml):
+```diff
+// kubernetes/api-gateway.yaml
+# ...
+spec:
+  stripPrefix:
+    prefixes:
+      - /api
++---
++apiVersion: traefik.containo.us/v1alpha1
++kind: ServersTransport
++metadata:
++  name: tls-transport
++  namespace: default
++
++spec:
++  serverName: api
++  rootCAsSecrets:
++    - ca-cert
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: api-ingress
+  namespace: default
+spec:
+  entryPoints:
+    - websecure
+  routes:
+  - kind: Rule
+    match: PathPrefix(`/api/v1`)
+    services:
+    - name: api
+      port: 443
++      serversTransport: tls-transport
+    middlewares:
+    - name: http-ratelimit
+    - name: strip-api-prefix
+  tls:
+    secretName: ingress-tls
+```
+
+You may have noticed pods from reconciler are also failing. It is still trying to use HTTP - we need to update it to use HTTPS for its API calls, including validation against the CA.
 
 ``` diff
 // kubernetes/reconciler.yaml
