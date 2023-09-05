@@ -1,6 +1,14 @@
-| ![](images/fintech_devcon-logo.svg) | ![](images/JumpWireLogo_PurpleBlue.svg) |
-|:--:|:--:|
-|**#fintechdevcon2023**|**Secure software demystified**|
+<div align="center">
+
+<img src="images/JumpWireLogo_PurpleBlue.svg" width="600" />
+
+**Secure software demystified**
+
+---
+
+</div>
+
+<br />
 
 ## 🔒 Secure software demystified: data security practices
 
